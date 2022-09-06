@@ -12,7 +12,7 @@ var (
 		Short:   "put data into storage",
 		Long:    putDescription,
 		RunE:    put,
-		Example: "korero discord login 12345",
+		Example: "ls3 put data.txt",
 	}
 )
 
