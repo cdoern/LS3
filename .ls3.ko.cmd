@@ -1,1 +1,1 @@
-cmd_/home/charliedoern/Documents/LS3/ls3.ko := ld -r -m elf_x86_64 --build-id=sha1  -T scripts/module.lds -o /home/charliedoern/Documents/LS3/ls3.ko /home/charliedoern/Documents/LS3/ls3.o /home/charliedoern/Documents/LS3/ls3.mod.o;  true
+cmd_/home/charliedoern/Documents/LS3/ls3.ko := ld -r -m elf_x86_64 -z noexecstack --build-id=sha1  -T scripts/module.lds -o /home/charliedoern/Documents/LS3/ls3.ko /home/charliedoern/Documents/LS3/ls3.o /home/charliedoern/Documents/LS3/ls3.mod.o;  true

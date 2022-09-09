@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 cmd_/home/charliedoern/Documents/LS3/ls3.o := gcc -Wp,-MMD,/home/charliedoern/Documents/LS3/.ls3.o.d -nostdinc -isystem /usr/lib/gcc/x86_64-redhat-linux/11/include -I./arch/x86/include -I./arch/x86/include/generated  -I./include -I./arch/x86/include/uapi -I./arch/x86/include/generated/uapi -I./include/uapi -I./include/generated/uapi -include ./include/linux/compiler-version.h -include ./include/linux/kconfig.h -include ./include/linux/compiler_types.h -D__KERNEL__ -fmacro-prefix-map=./= -Wall -Wundef -Werror=strict-prototypes -Wno-trigraphs -fno-strict-aliasing -fno-common -fshort-wchar -fno-PIE -Werror=implicit-function-declaration -Werror=implicit-int -Werror=return-type -Wno-format-security -std=gnu89 -mno-sse -mno-mmx -mno-sse2 -mno-3dnow -mno-avx -fcf-protection=none -m64 -falign-jumps=1 -falign-loops=1 -mno-80387 -mno-fp-ret-in-387 -mpreferred-stack-boundary=3 -mskip-rax-setup -mtune=generic -mno-red-zone -mcmodel=kernel -Wno-sign-compare -fno-asynchronous-unwind-tables -mindirect-branch=thunk-extern -mindirect-branch-register -fno-jump-tables -fno-delete-null-pointer-checks -Wno-frame-address -Wno-format-truncation -Wno-format-overflow -Wno-address-of-packed-member -O2 -fno-allow-store-data-races -Wframe-larger-than=2048 -fstack-protector -Wimplicit-fallthrough=5 -Wno-main -Wno-unused-but-set-variable -Wno-unused-const-variable -fno-stack-clash-protection -g -gdwarf-4 -pg -mrecord-mcount -mfentry -DCC_USING_FENTRY -Wdeclaration-after-statement -Wvla -Wno-pointer-sign -Wno-stringop-truncation -Wno-zero-length-bounds -Wno-array-bounds -Wno-stringop-overflow -Wno-restrict -Wno-maybe-uninitialized -fno-strict-overflow -fno-stack-check -fconserve-stack -Werror=date-time -Werror=incompatible-pointer-types -Werror=designated-init -Wno-packed-not-aligned  -DMODULE  -DKBUILD_BASENAME='"ls3"' -DKBUILD_MODNAME='"ls3"' -D__KBUILD_MODNAME=kmod_ls3 -c -o /home/charliedoern/Documents/LS3/ls3.o /home/charliedoern/Documents/LS3/ls3.c
+=======
+cmd_/home/charliedoern/Documents/LS3/ls3.o := gcc -Wp,-MMD,/home/charliedoern/Documents/LS3/.ls3.o.d -nostdinc -I./arch/x86/include -I./arch/x86/include/generated  -I./include -I./arch/x86/include/uapi -I./arch/x86/include/generated/uapi -I./include/uapi -I./include/generated/uapi -include ./include/linux/compiler-version.h -include ./include/linux/kconfig.h -include ./include/linux/compiler_types.h -D__KERNEL__ -fmacro-prefix-map=./= -Wall -Wundef -Werror=strict-prototypes -Wno-trigraphs -fno-strict-aliasing -fno-common -fshort-wchar -fno-PIE -Werror=implicit-function-declaration -Werror=implicit-int -Werror=return-type -Wno-format-security -std=gnu11 -mno-sse -mno-mmx -mno-sse2 -mno-3dnow -mno-avx -fcf-protection=none -m64 -falign-jumps=1 -falign-loops=1 -mno-80387 -mno-fp-ret-in-387 -mpreferred-stack-boundary=3 -mskip-rax-setup -mtune=generic -mno-red-zone -mcmodel=kernel -Wno-sign-compare -fno-asynchronous-unwind-tables -mindirect-branch=thunk-extern -mindirect-branch-register -mindirect-branch-cs-prefix -mfunction-return=thunk-extern -fno-jump-tables -mharden-sls=all -fno-delete-null-pointer-checks -Wno-frame-address -Wno-format-truncation -Wno-format-overflow -Wno-address-of-packed-member -O2 -fno-allow-store-data-races -Wframe-larger-than=2048 -fstack-protector -Wno-array-bounds -Wimplicit-fallthrough=5 -Wno-main -Wno-unused-but-set-variable -Wno-unused-const-variable -Wno-dangling-pointer -fno-stack-clash-protection -pg -mrecord-mcount -mfentry -DCC_USING_FENTRY -Wdeclaration-after-statement -Wvla -Wno-pointer-sign -Wcast-function-type -Wno-stringop-truncation -Wno-stringop-overflow -Wno-restrict -Wno-maybe-uninitialized -Wno-alloc-size-larger-than -fno-strict-overflow -fno-stack-check -fconserve-stack -Werror=date-time -Werror=incompatible-pointer-types -Werror=designated-init -Wno-packed-not-aligned -g  -DMODULE  -DKBUILD_BASENAME='"ls3"' -DKBUILD_MODNAME='"ls3"' -D__KBUILD_MODNAME=kmod_ls3 -c -o /home/charliedoern/Documents/LS3/ls3.o /home/charliedoern/Documents/LS3/ls3.c   ; ./tools/objtool/objtool  --hacks=jump_label  --hacks=noinstr    --orc  --retpoline  --rethunk  --sls   --static-call  --uaccess   --module  /home/charliedoern/Documents/LS3/ls3.o
+>>>>>>> 37b11c7 (ioctl method)
 
 source_/home/charliedoern/Documents/LS3/ls3.o := /home/charliedoern/Documents/LS3/ls3.c
 
@@ -10,12 +14,21 @@ deps_/home/charliedoern/Documents/LS3/ls3.o := \
     $(wildcard include/config/BOOGER) \
     $(wildcard include/config/FOO) \
   include/linux/compiler_types.h \
+<<<<<<< HEAD
+=======
+    $(wildcard include/config/DEBUG_INFO_BTF) \
+    $(wildcard include/config/PAHOLE_HAS_BTF_TAG) \
+>>>>>>> 37b11c7 (ioctl method)
     $(wildcard include/config/HAVE_ARCH_COMPILER_H) \
     $(wildcard include/config/CC_HAS_ASM_INLINE) \
   include/linux/compiler_attributes.h \
   include/linux/compiler-gcc.h \
     $(wildcard include/config/RETPOLINE) \
     $(wildcard include/config/ARCH_USE_BUILTIN_BSWAP) \
+<<<<<<< HEAD
+=======
+    $(wildcard include/config/SHADOW_CALL_STACK) \
+>>>>>>> 37b11c7 (ioctl method)
     $(wildcard include/config/KCOV) \
   include/linux/module.h \
     $(wildcard include/config/MODULES) \
@@ -25,6 +38,10 @@ deps_/home/charliedoern/Documents/LS3/ls3.o := \
     $(wildcard include/config/STACKTRACE_BUILD_ID) \
     $(wildcard include/config/CFI_CLANG) \
     $(wildcard include/config/MODULE_SIG) \
+<<<<<<< HEAD
+=======
+    $(wildcard include/config/ARCH_WANTS_MODULES_DATA_IN_VMALLOC) \
+>>>>>>> 37b11c7 (ioctl method)
     $(wildcard include/config/GENERIC_BUG) \
     $(wildcard include/config/KALLSYMS) \
     $(wildcard include/config/SMP) \
@@ -38,11 +55,30 @@ deps_/home/charliedoern/Documents/LS3/ls3.o := \
     $(wildcard include/config/FTRACE_MCOUNT_RECORD) \
     $(wildcard include/config/KPROBES) \
     $(wildcard include/config/HAVE_STATIC_CALL_INLINE) \
+<<<<<<< HEAD
+=======
+    $(wildcard include/config/PRINTK_INDEX) \
+>>>>>>> 37b11c7 (ioctl method)
     $(wildcard include/config/MODULE_UNLOAD) \
     $(wildcard include/config/CONSTRUCTORS) \
     $(wildcard include/config/FUNCTION_ERROR_INJECTION) \
   include/linux/list.h \
     $(wildcard include/config/DEBUG_LIST) \
+<<<<<<< HEAD
+=======
+  include/linux/container_of.h \
+  include/linux/build_bug.h \
+  include/linux/compiler.h \
+    $(wildcard include/config/TRACE_BRANCH_PROFILING) \
+    $(wildcard include/config/PROFILE_ALL_BRANCHES) \
+    $(wildcard include/config/OBJTOOL) \
+  include/linux/compiler_types.h \
+  arch/x86/include/generated/asm/rwonce.h \
+  include/asm-generic/rwonce.h \
+  include/linux/kasan-checks.h \
+    $(wildcard include/config/KASAN_GENERIC) \
+    $(wildcard include/config/KASAN_SW_TAGS) \
+>>>>>>> 37b11c7 (ioctl method)
   include/linux/types.h \
     $(wildcard include/config/HAVE_UID16) \
     $(wildcard include/config/UID16) \
@@ -61,16 +97,31 @@ deps_/home/charliedoern/Documents/LS3/ls3.o := \
   include/uapi/linux/posix_types.h \
   include/linux/stddef.h \
   include/uapi/linux/stddef.h \
+<<<<<<< HEAD
   include/linux/compiler_types.h \
+=======
+>>>>>>> 37b11c7 (ioctl method)
   arch/x86/include/asm/posix_types.h \
     $(wildcard include/config/X86_32) \
   arch/x86/include/uapi/asm/posix_types_64.h \
   include/uapi/asm-generic/posix_types.h \
+<<<<<<< HEAD
+=======
+  include/linux/kcsan-checks.h \
+    $(wildcard include/config/KCSAN) \
+    $(wildcard include/config/KCSAN_WEAK_MEMORY) \
+    $(wildcard include/config/KCSAN_IGNORE_ATOMICS) \
+  include/linux/err.h \
+  arch/x86/include/generated/uapi/asm/errno.h \
+  include/uapi/asm-generic/errno.h \
+  include/uapi/asm-generic/errno-base.h \
+>>>>>>> 37b11c7 (ioctl method)
   include/linux/poison.h \
     $(wildcard include/config/ILLEGAL_POINTER_VALUE) \
   include/linux/const.h \
   include/vdso/const.h \
   include/uapi/linux/const.h \
+<<<<<<< HEAD
   include/linux/kernel.h \
     $(wildcard include/config/PREEMPT_VOLUNTARY) \
     $(wildcard include/config/PREEMPT_DYNAMIC) \
@@ -213,13 +264,51 @@ deps_/home/charliedoern/Documents/LS3/ls3.o := \
   arch/x86/include/asm/jump_label.h \
   include/linux/static_call_types.h \
     $(wildcard include/config/HAVE_STATIC_CALL) \
+=======
+  arch/x86/include/asm/barrier.h \
+  arch/x86/include/asm/alternative.h \
+  include/linux/stringify.h \
+  arch/x86/include/asm/asm.h \
+  arch/x86/include/asm/extable_fixup_types.h \
+  arch/x86/include/asm/nops.h \
+  include/asm-generic/barrier.h \
+>>>>>>> 37b11c7 (ioctl method)
   include/linux/stat.h \
   arch/x86/include/uapi/asm/stat.h \
   include/uapi/linux/stat.h \
   include/linux/time.h \
     $(wildcard include/config/POSIX_TIMERS) \
+<<<<<<< HEAD
   include/linux/math64.h \
     $(wildcard include/config/ARCH_SUPPORTS_INT128) \
+=======
+  include/linux/cache.h \
+    $(wildcard include/config/ARCH_HAS_CACHE_LINE_SIZE) \
+  include/uapi/linux/kernel.h \
+  include/uapi/linux/sysinfo.h \
+  arch/x86/include/asm/cache.h \
+    $(wildcard include/config/X86_L1_CACHE_SHIFT) \
+    $(wildcard include/config/X86_INTERNODE_CACHE_SHIFT) \
+    $(wildcard include/config/X86_VSMP) \
+  include/linux/linkage.h \
+    $(wildcard include/config/ARCH_USE_SYM_ANNOTATIONS) \
+  include/linux/export.h \
+    $(wildcard include/config/MODVERSIONS) \
+    $(wildcard include/config/HAVE_ARCH_PREL32_RELOCATIONS) \
+    $(wildcard include/config/TRIM_UNUSED_KSYMS) \
+  arch/x86/include/asm/linkage.h \
+    $(wildcard include/config/X86_64) \
+    $(wildcard include/config/X86_ALIGNMENT_16) \
+    $(wildcard include/config/RETHUNK) \
+    $(wildcard include/config/SLS) \
+  arch/x86/include/asm/ibt.h \
+    $(wildcard include/config/X86_KERNEL_IBT) \
+  include/linux/math64.h \
+    $(wildcard include/config/ARCH_SUPPORTS_INT128) \
+  include/linux/math.h \
+  arch/x86/include/asm/div64.h \
+  include/asm-generic/div64.h \
+>>>>>>> 37b11c7 (ioctl method)
   include/vdso/math64.h \
   include/linux/time64.h \
   include/vdso/time64.h \
@@ -228,21 +317,50 @@ deps_/home/charliedoern/Documents/LS3/ls3.o := \
   include/linux/time32.h \
   include/linux/timex.h \
   include/uapi/linux/timex.h \
+<<<<<<< HEAD
   arch/x86/include/asm/timex.h \
+=======
+  include/uapi/linux/param.h \
+  arch/x86/include/generated/uapi/asm/param.h \
+  include/asm-generic/param.h \
+    $(wildcard include/config/HZ) \
+  include/uapi/asm-generic/param.h \
+  arch/x86/include/asm/timex.h \
+    $(wildcard include/config/X86_TSC) \
+>>>>>>> 37b11c7 (ioctl method)
   arch/x86/include/asm/processor.h \
     $(wildcard include/config/X86_VMX_FEATURE_NAMES) \
     $(wildcard include/config/X86_IOPL_IOPERM) \
     $(wildcard include/config/STACKPROTECTOR) \
     $(wildcard include/config/VM86) \
+<<<<<<< HEAD
     $(wildcard include/config/X86_DEBUGCTLMSR) \
     $(wildcard include/config/CPU_SUP_AMD) \
     $(wildcard include/config/XEN) \
   arch/x86/include/asm/processor-flags.h \
+=======
+    $(wildcard include/config/PARAVIRT_XXL) \
+    $(wildcard include/config/X86_DEBUGCTLMSR) \
+    $(wildcard include/config/CPU_SUP_AMD) \
+    $(wildcard include/config/XEN) \
+    $(wildcard include/config/X86_SGX) \
+  arch/x86/include/asm/processor-flags.h \
+    $(wildcard include/config/PAGE_TABLE_ISOLATION) \
+>>>>>>> 37b11c7 (ioctl method)
   arch/x86/include/uapi/asm/processor-flags.h \
   include/linux/mem_encrypt.h \
     $(wildcard include/config/ARCH_HAS_MEM_ENCRYPT) \
     $(wildcard include/config/AMD_MEM_ENCRYPT) \
   arch/x86/include/asm/mem_encrypt.h \
+<<<<<<< HEAD
+=======
+  include/linux/init.h \
+    $(wildcard include/config/STRICT_KERNEL_RWX) \
+    $(wildcard include/config/STRICT_MODULE_RWX) \
+    $(wildcard include/config/LTO_CLANG) \
+  include/linux/cc_platform.h \
+    $(wildcard include/config/ARCH_HAS_CC_PLATFORM) \
+>>>>>>> 37b11c7 (ioctl method)
   arch/x86/include/uapi/asm/bootparam.h \
   include/linux/screen_info.h \
   include/uapi/linux/screen_info.h \
@@ -272,6 +390,10 @@ deps_/home/charliedoern/Documents/LS3/ls3.o := \
   arch/x86/include/asm/page_64_types.h \
     $(wildcard include/config/KASAN) \
     $(wildcard include/config/DYNAMIC_MEMORY_LAYOUT) \
+<<<<<<< HEAD
+=======
+    $(wildcard include/config/X86_5LEVEL) \
+>>>>>>> 37b11c7 (ioctl method)
     $(wildcard include/config/RANDOMIZE_BASE) \
   arch/x86/include/asm/kaslr.h \
     $(wildcard include/config/RANDOMIZE_MEMORY) \
@@ -282,6 +404,11 @@ deps_/home/charliedoern/Documents/LS3/ls3.o := \
     $(wildcard include/config/PARAVIRT_DEBUG) \
   arch/x86/include/asm/desc_defs.h \
   arch/x86/include/asm/pgtable_types.h \
+<<<<<<< HEAD
+=======
+    $(wildcard include/config/X86_INTEL_MEMORY_PROTECTION_KEYS) \
+    $(wildcard include/config/X86_PAE) \
+>>>>>>> 37b11c7 (ioctl method)
     $(wildcard include/config/MEM_SOFT_DIRTY) \
     $(wildcard include/config/HAVE_ARCH_USERFAULTFD_WP) \
     $(wildcard include/config/PROC_FS) \
@@ -291,6 +418,7 @@ deps_/home/charliedoern/Documents/LS3/ls3.o := \
     $(wildcard include/config/SPARSEMEM) \
     $(wildcard include/config/NUMA_KEEP_MEMINFO) \
   arch/x86/include/asm/nospec-branch.h \
+<<<<<<< HEAD
   include/linux/static_key.h \
   include/linux/objtool.h \
   arch/x86/include/asm/msr-index.h \
@@ -302,6 +430,106 @@ deps_/home/charliedoern/Documents/LS3/ls3.o := \
   arch/x86/include/asm/current.h \
   arch/x86/include/asm/percpu.h \
     $(wildcard include/config/X86_64_SMP) \
+=======
+    $(wildcard include/config/DEBUG_ENTRY) \
+    $(wildcard include/config/CPU_UNRET_ENTRY) \
+    $(wildcard include/config/CPU_IBPB_ENTRY) \
+  include/linux/static_key.h \
+  include/linux/jump_label.h \
+    $(wildcard include/config/HAVE_ARCH_JUMP_LABEL_RELATIVE) \
+  arch/x86/include/asm/jump_label.h \
+    $(wildcard include/config/HAVE_JUMP_LABEL_HACK) \
+  include/linux/objtool.h \
+    $(wildcard include/config/FRAME_POINTER) \
+  arch/x86/include/asm/cpufeatures.h \
+  arch/x86/include/asm/required-features.h \
+    $(wildcard include/config/X86_MINIMUM_CPU_FAMILY) \
+    $(wildcard include/config/MATH_EMULATION) \
+    $(wildcard include/config/X86_CMPXCHG64) \
+    $(wildcard include/config/X86_CMOV) \
+    $(wildcard include/config/X86_P6_NOP) \
+    $(wildcard include/config/MATOM) \
+  arch/x86/include/asm/disabled-features.h \
+    $(wildcard include/config/X86_UMIP) \
+    $(wildcard include/config/INTEL_IOMMU_SVM) \
+    $(wildcard include/config/INTEL_TDX_GUEST) \
+  arch/x86/include/asm/msr-index.h \
+  include/linux/bits.h \
+  include/vdso/bits.h \
+  arch/x86/include/asm/unwind_hints.h \
+  arch/x86/include/asm/orc_types.h \
+  arch/x86/include/uapi/asm/byteorder.h \
+  include/linux/byteorder/little_endian.h \
+  include/uapi/linux/byteorder/little_endian.h \
+  include/linux/swab.h \
+  include/uapi/linux/swab.h \
+  arch/x86/include/uapi/asm/swab.h \
+  include/linux/byteorder/generic.h \
+  arch/x86/include/asm/percpu.h \
+    $(wildcard include/config/X86_64_SMP) \
+  include/linux/kernel.h \
+    $(wildcard include/config/PREEMPT_VOLUNTARY_BUILD) \
+    $(wildcard include/config/PREEMPT_DYNAMIC) \
+    $(wildcard include/config/HAVE_PREEMPT_DYNAMIC_CALL) \
+    $(wildcard include/config/HAVE_PREEMPT_DYNAMIC_KEY) \
+    $(wildcard include/config/PREEMPT_) \
+    $(wildcard include/config/DEBUG_ATOMIC_SLEEP) \
+    $(wildcard include/config/MMU) \
+    $(wildcard include/config/PROVE_LOCKING) \
+  include/linux/stdarg.h \
+  include/linux/align.h \
+  include/linux/limits.h \
+  include/uapi/linux/limits.h \
+  include/vdso/limits.h \
+  include/linux/bitops.h \
+  include/linux/typecheck.h \
+  arch/x86/include/asm/bitops.h \
+  arch/x86/include/asm/rmwcc.h \
+    $(wildcard include/config/CC_HAS_ASM_GOTO) \
+  include/asm-generic/bitops/sched.h \
+  arch/x86/include/asm/arch_hweight.h \
+  include/asm-generic/bitops/const_hweight.h \
+  include/asm-generic/bitops/instrumented-atomic.h \
+  include/linux/instrumented.h \
+  include/asm-generic/bitops/instrumented-non-atomic.h \
+    $(wildcard include/config/KCSAN_ASSUME_PLAIN_WRITES_ATOMIC) \
+  include/asm-generic/bitops/instrumented-lock.h \
+  include/asm-generic/bitops/le.h \
+  include/asm-generic/bitops/ext2-atomic-setbit.h \
+  include/linux/kstrtox.h \
+  include/linux/log2.h \
+    $(wildcard include/config/ARCH_HAS_ILOG2_U32) \
+    $(wildcard include/config/ARCH_HAS_ILOG2_U64) \
+  include/linux/minmax.h \
+  include/linux/panic.h \
+    $(wildcard include/config/PANIC_TIMEOUT) \
+  include/linux/printk.h \
+    $(wildcard include/config/MESSAGE_LOGLEVEL_DEFAULT) \
+    $(wildcard include/config/CONSOLE_LOGLEVEL_DEFAULT) \
+    $(wildcard include/config/CONSOLE_LOGLEVEL_QUIET) \
+    $(wildcard include/config/EARLY_PRINTK) \
+    $(wildcard include/config/PRINTK) \
+    $(wildcard include/config/DYNAMIC_DEBUG) \
+    $(wildcard include/config/DYNAMIC_DEBUG_CORE) \
+  include/linux/kern_levels.h \
+  include/linux/ratelimit_types.h \
+  include/linux/spinlock_types_raw.h \
+    $(wildcard include/config/DEBUG_SPINLOCK) \
+    $(wildcard include/config/DEBUG_LOCK_ALLOC) \
+  arch/x86/include/asm/spinlock_types.h \
+  include/asm-generic/qspinlock_types.h \
+    $(wildcard include/config/NR_CPUS) \
+  include/asm-generic/qrwlock_types.h \
+  include/linux/lockdep_types.h \
+    $(wildcard include/config/PROVE_RAW_LOCK_NESTING) \
+    $(wildcard include/config/LOCKDEP) \
+    $(wildcard include/config/LOCK_STAT) \
+  include/linux/once_lite.h \
+  include/linux/dynamic_debug.h \
+  include/linux/static_call_types.h \
+    $(wildcard include/config/HAVE_STATIC_CALL) \
+  include/linux/instruction_pointer.h \
+>>>>>>> 37b11c7 (ioctl method)
   include/asm-generic/percpu.h \
     $(wildcard include/config/DEBUG_PREEMPT) \
     $(wildcard include/config/HAVE_SETUP_PER_CPU_AREA) \
@@ -309,6 +537,14 @@ deps_/home/charliedoern/Documents/LS3/ls3.o := \
     $(wildcard include/config/BASE_SMALL) \
   include/linux/percpu-defs.h \
     $(wildcard include/config/DEBUG_FORCE_WEAK_PER_CPU) \
+<<<<<<< HEAD
+=======
+  arch/x86/include/asm/GEN-for-each-reg.h \
+  arch/x86/include/asm/proto.h \
+  arch/x86/include/uapi/asm/ldt.h \
+  arch/x86/include/uapi/asm/sigcontext.h \
+  arch/x86/include/asm/current.h \
+>>>>>>> 37b11c7 (ioctl method)
   arch/x86/include/asm/page.h \
   arch/x86/include/asm/page_64.h \
     $(wildcard include/config/DEBUG_VIRTUAL) \
@@ -321,15 +557,22 @@ deps_/home/charliedoern/Documents/LS3/ls3.o := \
   include/asm-generic/getorder.h \
   arch/x86/include/asm/msr.h \
   arch/x86/include/asm/msr-index.h \
+<<<<<<< HEAD
   arch/x86/include/generated/uapi/asm/errno.h \
   include/uapi/asm-generic/errno.h \
   include/uapi/asm-generic/errno-base.h \
+=======
+>>>>>>> 37b11c7 (ioctl method)
   arch/x86/include/asm/cpumask.h \
   include/linux/cpumask.h \
     $(wildcard include/config/CPUMASK_OFFSTACK) \
     $(wildcard include/config/HOTPLUG_CPU) \
     $(wildcard include/config/DEBUG_PER_CPU_MAPS) \
   include/linux/bitmap.h \
+<<<<<<< HEAD
+=======
+  include/linux/find.h \
+>>>>>>> 37b11c7 (ioctl method)
   include/linux/string.h \
     $(wildcard include/config/BINARY_PRINTF) \
     $(wildcard include/config/FORTIFY_SOURCE) \
@@ -345,28 +588,50 @@ deps_/home/charliedoern/Documents/LS3/ls3.o := \
   arch/x86/include/asm/cmpxchg.h \
   arch/x86/include/asm/cmpxchg_64.h \
   arch/x86/include/asm/atomic64_64.h \
+<<<<<<< HEAD
   include/linux/atomic-arch-fallback.h \
     $(wildcard include/config/GENERIC_ATOMIC64) \
   include/asm-generic/atomic-instrumented.h \
   include/asm-generic/atomic-long.h \
+=======
+  include/linux/atomic/atomic-arch-fallback.h \
+    $(wildcard include/config/GENERIC_ATOMIC64) \
+  include/linux/atomic/atomic-long.h \
+  include/linux/atomic/atomic-instrumented.h \
+>>>>>>> 37b11c7 (ioctl method)
   include/linux/bug.h \
     $(wildcard include/config/BUG_ON_DATA_CORRUPTION) \
   arch/x86/include/asm/bug.h \
     $(wildcard include/config/DEBUG_BUGVERBOSE) \
   include/linux/instrumentation.h \
+<<<<<<< HEAD
     $(wildcard include/config/DEBUG_ENTRY) \
+=======
+    $(wildcard include/config/NOINSTR_VALIDATION) \
+>>>>>>> 37b11c7 (ioctl method)
   include/asm-generic/bug.h \
     $(wildcard include/config/BUG) \
     $(wildcard include/config/GENERIC_BUG_RELATIVE_POINTERS) \
   arch/x86/include/uapi/asm/msr.h \
+<<<<<<< HEAD
+=======
+  arch/x86/include/asm/shared/msr.h \
+>>>>>>> 37b11c7 (ioctl method)
   include/linux/tracepoint-defs.h \
   arch/x86/include/asm/paravirt.h \
     $(wildcard include/config/PARAVIRT_SPINLOCKS) \
   arch/x86/include/asm/frame.h \
+<<<<<<< HEAD
     $(wildcard include/config/FRAME_POINTER) \
   arch/x86/include/asm/special_insns.h \
   include/linux/irqflags.h \
     $(wildcard include/config/TRACE_IRQFLAGS) \
+=======
+  arch/x86/include/asm/special_insns.h \
+  include/linux/irqflags.h \
+    $(wildcard include/config/TRACE_IRQFLAGS) \
+    $(wildcard include/config/PREEMPT_RT) \
+>>>>>>> 37b11c7 (ioctl method)
     $(wildcard include/config/IRQSOFF_TRACER) \
     $(wildcard include/config/PREEMPT_TRACER) \
     $(wildcard include/config/DEBUG_IRQFLAGS) \
@@ -377,9 +642,13 @@ deps_/home/charliedoern/Documents/LS3/ls3.o := \
   arch/x86/include/asm/vdso/processor.h \
   include/linux/personality.h \
   include/uapi/linux/personality.h \
+<<<<<<< HEAD
   include/linux/err.h \
   arch/x86/include/asm/tsc.h \
     $(wildcard include/config/X86_TSC) \
+=======
+  arch/x86/include/asm/tsc.h \
+>>>>>>> 37b11c7 (ioctl method)
   arch/x86/include/asm/cpufeature.h \
     $(wildcard include/config/X86_FEATURE_NAMES) \
   include/vdso/time32.h \
@@ -404,7 +673,12 @@ deps_/home/charliedoern/Documents/LS3/ls3.o := \
     $(wildcard include/config/NUMA_BALANCING) \
     $(wildcard include/config/ARCH_WANT_BATCHED_UNMAP_TLB_FLUSH) \
     $(wildcard include/config/HUGETLB_PAGE) \
+<<<<<<< HEAD
     $(wildcard include/config/IOMMU_SUPPORT) \
+=======
+    $(wildcard include/config/IOMMU_SVA) \
+    $(wildcard include/config/KSM) \
+>>>>>>> 37b11c7 (ioctl method)
   include/linux/mm_types_task.h \
     $(wildcard include/config/SPLIT_PTLOCK_CPUS) \
     $(wildcard include/config/ARCH_ENABLE_SPLIT_PMD_PTLOCK) \
@@ -412,10 +686,17 @@ deps_/home/charliedoern/Documents/LS3/ls3.o := \
   include/linux/auxvec.h \
   include/uapi/linux/auxvec.h \
   arch/x86/include/uapi/asm/auxvec.h \
+<<<<<<< HEAD
   include/linux/spinlock.h \
     $(wildcard include/config/PREEMPTION) \
   include/linux/preempt.h \
     $(wildcard include/config/PREEMPT_RT) \
+=======
+  include/linux/kref.h \
+  include/linux/spinlock.h \
+    $(wildcard include/config/PREEMPTION) \
+  include/linux/preempt.h \
+>>>>>>> 37b11c7 (ioctl method)
     $(wildcard include/config/PREEMPT_COUNT) \
     $(wildcard include/config/TRACE_PREEMPT_TOGGLE) \
     $(wildcard include/config/PREEMPT_NOTIFIERS) \
@@ -442,6 +723,11 @@ deps_/home/charliedoern/Documents/LS3/ls3.o := \
   arch/x86/include/generated/asm/mmiowb.h \
   include/asm-generic/mmiowb.h \
     $(wildcard include/config/MMIOWB) \
+<<<<<<< HEAD
+=======
+  include/linux/spinlock_types.h \
+  include/linux/rwlock_types.h \
+>>>>>>> 37b11c7 (ioctl method)
   arch/x86/include/asm/spinlock.h \
   arch/x86/include/asm/qspinlock.h \
   include/asm-generic/qspinlock.h \
@@ -480,10 +766,20 @@ deps_/home/charliedoern/Documents/LS3/ls3.o := \
     $(wildcard include/config/INLINE_WRITE_UNLOCK_IRQ) \
     $(wildcard include/config/INLINE_READ_UNLOCK_IRQRESTORE) \
     $(wildcard include/config/INLINE_WRITE_UNLOCK_IRQRESTORE) \
+<<<<<<< HEAD
   include/linux/rbtree.h \
   include/linux/rcupdate.h \
     $(wildcard include/config/PREEMPT_RCU) \
     $(wildcard include/config/TINY_RCU) \
+=======
+  include/linux/refcount.h \
+  include/linux/rbtree.h \
+  include/linux/rbtree_types.h \
+  include/linux/rcupdate.h \
+    $(wildcard include/config/PREEMPT_RCU) \
+    $(wildcard include/config/TINY_RCU) \
+    $(wildcard include/config/RCU_STRICT_GRACE_PERIOD) \
+>>>>>>> 37b11c7 (ioctl method)
     $(wildcard include/config/TASKS_RCU_GENERIC) \
     $(wildcard include/config/RCU_STALL_COMMON) \
     $(wildcard include/config/NO_HZ_FULL) \
@@ -521,7 +817,10 @@ deps_/home/charliedoern/Documents/LS3/ls3.o := \
     $(wildcard include/config/WQ_WATCHDOG) \
   include/linux/timer.h \
     $(wildcard include/config/DEBUG_OBJECTS_TIMERS) \
+<<<<<<< HEAD
     $(wildcard include/config/NO_HZ_COMMON) \
+=======
+>>>>>>> 37b11c7 (ioctl method)
   include/linux/ktime.h \
   include/linux/jiffies.h \
   include/vdso/jiffies.h \
@@ -542,10 +841,16 @@ deps_/home/charliedoern/Documents/LS3/ls3.o := \
     $(wildcard include/config/KASAN_HW_TAGS) \
   include/linux/numa.h \
     $(wildcard include/config/NODES_SHIFT) \
+<<<<<<< HEAD
   include/generated/bounds.h \
   include/linux/seqlock.h \
   include/linux/ww_mutex.h \
     $(wildcard include/config/DEBUG_WW_MUTEX_SLOWPATH) \
+=======
+    $(wildcard include/config/HAVE_ARCH_NODE_DEV_GROUP) \
+  include/generated/bounds.h \
+  include/linux/seqlock.h \
+>>>>>>> 37b11c7 (ioctl method)
   arch/x86/include/asm/mmu.h \
     $(wildcard include/config/MODIFY_LDT_SYSCALL) \
   include/linux/kmod.h \
@@ -565,7 +870,10 @@ deps_/home/charliedoern/Documents/LS3/ls3.o := \
     $(wildcard include/config/FORCE_MAX_ZONEORDER) \
     $(wildcard include/config/MEMORY_ISOLATION) \
     $(wildcard include/config/ZSMALLOC) \
+<<<<<<< HEAD
     $(wildcard include/config/SHADOW_CALL_STACK) \
+=======
+>>>>>>> 37b11c7 (ioctl method)
     $(wildcard include/config/MEMORY_HOTPLUG) \
     $(wildcard include/config/COMPACTION) \
     $(wildcard include/config/PAGE_EXTENSION) \
@@ -573,13 +881,17 @@ deps_/home/charliedoern/Documents/LS3/ls3.o := \
     $(wildcard include/config/HAVE_MEMORYLESS_NODES) \
     $(wildcard include/config/SPARSEMEM_EXTREME) \
     $(wildcard include/config/HAVE_ARCH_PFN_VALID) \
+<<<<<<< HEAD
     $(wildcard include/config/HOLES_IN_ZONE) \
+=======
+>>>>>>> 37b11c7 (ioctl method)
   include/linux/nodemask.h \
   include/linux/pageblock-flags.h \
     $(wildcard include/config/HUGETLB_PAGE_SIZE_VARIABLE) \
   include/linux/page-flags.h \
     $(wildcard include/config/ARCH_USES_PG_UNCACHED) \
     $(wildcard include/config/MEMORY_FAILURE) \
+<<<<<<< HEAD
     $(wildcard include/config/IDLE_PAGE_TRACKING) \
     $(wildcard include/config/THP_SWAP) \
     $(wildcard include/config/KSM) \
@@ -589,19 +901,38 @@ deps_/home/charliedoern/Documents/LS3/ls3.o := \
     $(wildcard include/config/ARCH_HAS_ADD_PAGES) \
     $(wildcard include/config/HAVE_ARCH_NODEDATA_EXTENSION) \
     $(wildcard include/config/MEMORY_HOTREMOVE) \
+=======
+    $(wildcard include/config/PAGE_IDLE_FLAG) \
+    $(wildcard include/config/HUGETLB_PAGE_OPTIMIZE_VMEMMAP) \
+    $(wildcard include/config/HUGETLB_PAGE_OPTIMIZE_VMEMMAP_DEFAULT_ON) \
+  include/linux/local_lock.h \
+  include/linux/local_lock_internal.h \
+  include/linux/memory_hotplug.h \
+    $(wildcard include/config/HAVE_ARCH_NODEDATA_EXTENSION) \
+    $(wildcard include/config/ARCH_HAS_ADD_PAGES) \
+    $(wildcard include/config/MEMORY_HOTREMOVE) \
+    $(wildcard include/config/MHP_MEMMAP_ON_MEMORY) \
+>>>>>>> 37b11c7 (ioctl method)
   arch/x86/include/asm/mmzone.h \
   arch/x86/include/asm/mmzone_64.h \
   include/linux/topology.h \
     $(wildcard include/config/USE_PERCPU_NUMA_NODE_ID) \
     $(wildcard include/config/SCHED_SMT) \
   include/linux/arch_topology.h \
+<<<<<<< HEAD
+=======
+    $(wildcard include/config/ACPI_CPPC_LIB) \
+>>>>>>> 37b11c7 (ioctl method)
     $(wildcard include/config/GENERIC_ARCH_TOPOLOGY) \
   include/linux/percpu.h \
     $(wildcard include/config/NEED_PER_CPU_EMBED_FIRST_CHUNK) \
     $(wildcard include/config/NEED_PER_CPU_PAGE_FIRST_CHUNK) \
   arch/x86/include/asm/topology.h \
     $(wildcard include/config/SCHED_MC_PRIO) \
+<<<<<<< HEAD
     $(wildcard include/config/ACPI_CPPC_LIB) \
+=======
+>>>>>>> 37b11c7 (ioctl method)
   arch/x86/include/asm/mpspec.h \
     $(wildcard include/config/EISA) \
     $(wildcard include/config/X86_MPPARSE) \
@@ -621,7 +952,10 @@ deps_/home/charliedoern/Documents/LS3/ls3.o := \
   arch/x86/include/asm/user_64.h \
   arch/x86/include/asm/fsgsbase.h \
   arch/x86/include/asm/vdso.h \
+<<<<<<< HEAD
     $(wildcard include/config/X86_X32) \
+=======
+>>>>>>> 37b11c7 (ioctl method)
   include/uapi/linux/elf.h \
   include/uapi/linux/elf-em.h \
   include/linux/kobject.h \
@@ -636,8 +970,11 @@ deps_/home/charliedoern/Documents/LS3/ls3.o := \
     $(wildcard include/config/XARRAY_MULTI) \
   include/linux/kconfig.h \
   include/linux/kobject_ns.h \
+<<<<<<< HEAD
   include/linux/kref.h \
   include/linux/refcount.h \
+=======
+>>>>>>> 37b11c7 (ioctl method)
   include/linux/moduleparam.h \
     $(wildcard include/config/ALPHA) \
     $(wildcard include/config/IA64) \
@@ -658,6 +995,7 @@ deps_/home/charliedoern/Documents/LS3/ls3.o := \
   include/linux/miscdevice.h \
   include/uapi/linux/major.h \
   include/linux/device.h \
+<<<<<<< HEAD
     $(wildcard include/config/ENERGY_MODEL) \
     $(wildcard include/config/GENERIC_MSI_IRQ_DOMAIN) \
     $(wildcard include/config/PINCTRL) \
@@ -665,6 +1003,16 @@ deps_/home/charliedoern/Documents/LS3/ls3.o := \
     $(wildcard include/config/DMA_OPS) \
     $(wildcard include/config/DMA_DECLARE_COHERENT) \
     $(wildcard include/config/DMA_CMA) \
+=======
+    $(wildcard include/config/GENERIC_MSI_IRQ_DOMAIN) \
+    $(wildcard include/config/GENERIC_MSI_IRQ) \
+    $(wildcard include/config/ENERGY_MODEL) \
+    $(wildcard include/config/PINCTRL) \
+    $(wildcard include/config/DMA_OPS) \
+    $(wildcard include/config/DMA_DECLARE_COHERENT) \
+    $(wildcard include/config/DMA_CMA) \
+    $(wildcard include/config/SWIOTLB) \
+>>>>>>> 37b11c7 (ioctl method)
     $(wildcard include/config/ARCH_HAS_SYNC_DMA_FOR_DEVICE) \
     $(wildcard include/config/ARCH_HAS_SYNC_DMA_FOR_CPU) \
     $(wildcard include/config/ARCH_HAS_SYNC_DMA_FOR_CPU_ALL) \
@@ -678,13 +1026,20 @@ deps_/home/charliedoern/Documents/LS3/ls3.o := \
     $(wildcard include/config/VIRT_CPU_ACCOUNTING_NATIVE) \
     $(wildcard include/config/SCHED_INFO) \
     $(wildcard include/config/SCHEDSTATS) \
+<<<<<<< HEAD
+=======
+    $(wildcard include/config/SCHED_CORE) \
+>>>>>>> 37b11c7 (ioctl method)
     $(wildcard include/config/FAIR_GROUP_SCHED) \
     $(wildcard include/config/RT_GROUP_SCHED) \
     $(wildcard include/config/RT_MUTEXES) \
     $(wildcard include/config/UCLAMP_TASK) \
     $(wildcard include/config/UCLAMP_BUCKETS_COUNT) \
     $(wildcard include/config/KMAP_LOCAL) \
+<<<<<<< HEAD
     $(wildcard include/config/SCHED_CORE) \
+=======
+>>>>>>> 37b11c7 (ioctl method)
     $(wildcard include/config/CGROUP_SCHED) \
     $(wildcard include/config/BLK_DEV_IO_TRACE) \
     $(wildcard include/config/PSI) \
@@ -692,6 +1047,11 @@ deps_/home/charliedoern/Documents/LS3/ls3.o := \
     $(wildcard include/config/CGROUPS) \
     $(wildcard include/config/BLK_CGROUP) \
     $(wildcard include/config/PAGE_OWNER) \
+<<<<<<< HEAD
+=======
+    $(wildcard include/config/EVENTFD) \
+    $(wildcard include/config/CPU_SUP_INTEL) \
+>>>>>>> 37b11c7 (ioctl method)
     $(wildcard include/config/ARCH_HAS_SCALED_CPUTIME) \
     $(wildcard include/config/VIRT_CPU_ACCOUNTING_GEN) \
     $(wildcard include/config/POSIX_CPUTIMERS) \
@@ -704,7 +1064,10 @@ deps_/home/charliedoern/Documents/LS3/ls3.o := \
     $(wildcard include/config/AUDITSYSCALL) \
     $(wildcard include/config/UBSAN) \
     $(wildcard include/config/UBSAN_TRAP) \
+<<<<<<< HEAD
     $(wildcard include/config/BLOCK) \
+=======
+>>>>>>> 37b11c7 (ioctl method)
     $(wildcard include/config/TASK_XACCT) \
     $(wildcard include/config/CPUSETS) \
     $(wildcard include/config/X86_CPU_RESCTRL) \
@@ -723,7 +1086,15 @@ deps_/home/charliedoern/Documents/LS3/ls3.o := \
     $(wildcard include/config/GCC_PLUGIN_STACKLEAK) \
     $(wildcard include/config/X86_MCE) \
     $(wildcard include/config/KRETPROBES) \
+<<<<<<< HEAD
     $(wildcard include/config/ARCH_TASK_STRUCT_ON_STACK) \
+=======
+    $(wildcard include/config/RETHOOK) \
+    $(wildcard include/config/ARCH_HAS_PARANOID_L1D_FLUSH) \
+    $(wildcard include/config/ARCH_TASK_STRUCT_ON_STACK) \
+    $(wildcard include/config/PREEMPT_NONE) \
+    $(wildcard include/config/PREEMPT_VOLUNTARY) \
+>>>>>>> 37b11c7 (ioctl method)
     $(wildcard include/config/DEBUG_RSEQ) \
   include/uapi/linux/sched.h \
   include/linux/pid.h \
@@ -789,7 +1160,10 @@ deps_/home/charliedoern/Documents/LS3/ls3.o := \
   include/linux/posix-timers.h \
   include/linux/alarmtimer.h \
     $(wildcard include/config/RTC_CLASS) \
+<<<<<<< HEAD
   include/linux/task_work.h \
+=======
+>>>>>>> 37b11c7 (ioctl method)
   include/uapi/linux/rseq.h \
   include/linux/kcsan.h \
   arch/x86/include/generated/asm/kmap_size.h \
@@ -800,6 +1174,10 @@ deps_/home/charliedoern/Documents/LS3/ls3.o := \
     $(wildcard include/config/CPU_FREQ) \
   include/linux/sched/topology.h \
     $(wildcard include/config/SCHED_DEBUG) \
+<<<<<<< HEAD
+=======
+    $(wildcard include/config/SCHED_CLUSTER) \
+>>>>>>> 37b11c7 (ioctl method)
     $(wildcard include/config/SCHED_MC) \
     $(wildcard include/config/CPU_FREQ_GOV_SCHEDUTIL) \
   include/linux/sched/idle.h \
@@ -808,6 +1186,10 @@ deps_/home/charliedoern/Documents/LS3/ls3.o := \
   include/linux/klist.h \
   include/linux/pm.h \
     $(wildcard include/config/VT_CONSOLE_SLEEP) \
+<<<<<<< HEAD
+=======
+    $(wildcard include/config/CXL_SUSPEND) \
+>>>>>>> 37b11c7 (ioctl method)
     $(wildcard include/config/PM) \
     $(wildcard include/config/PM_CLK) \
     $(wildcard include/config/PM_GENERIC_DOMAINS) \
@@ -831,7 +1213,11 @@ deps_/home/charliedoern/Documents/LS3/ls3.o := \
     $(wildcard include/config/UNICODE) \
     $(wildcard include/config/QUOTA) \
     $(wildcard include/config/FS_DAX) \
+<<<<<<< HEAD
     $(wildcard include/config/MANDATORY_FILE_LOCKING) \
+=======
+    $(wildcard include/config/BLOCK) \
+>>>>>>> 37b11c7 (ioctl method)
     $(wildcard include/config/MIGRATION) \
   include/linux/wait_bit.h \
   include/linux/kdev_t.h \
@@ -868,22 +1254,40 @@ deps_/home/charliedoern/Documents/LS3/ls3.o := \
     $(wildcard include/config/TASKSTATS) \
     $(wildcard include/config/STACK_GROWSUP) \
   include/linux/signal.h \
+<<<<<<< HEAD
+=======
+    $(wildcard include/config/DYNAMIC_SIGFRAME) \
+>>>>>>> 37b11c7 (ioctl method)
   include/linux/sched/jobctl.h \
   include/linux/sched/task.h \
     $(wildcard include/config/HAVE_EXIT_THREAD) \
     $(wildcard include/config/ARCH_WANTS_DYNAMIC_TASK_STRUCT) \
     $(wildcard include/config/HAVE_ARCH_THREAD_STRUCT_WHITELIST) \
   include/linux/uaccess.h \
+<<<<<<< HEAD
     $(wildcard include/config/SET_FS) \
+=======
+    $(wildcard include/config/ARCH_HAS_SUBPAGE_FAULTS) \
+>>>>>>> 37b11c7 (ioctl method)
   include/linux/fault-inject-usercopy.h \
     $(wildcard include/config/FAULT_INJECTION_USERCOPY) \
   arch/x86/include/asm/uaccess.h \
     $(wildcard include/config/CC_HAS_ASM_GOTO_OUTPUT) \
+<<<<<<< HEAD
     $(wildcard include/config/CC_ASM_GOTO_OUTPUT) \
+=======
+    $(wildcard include/config/CC_HAS_ASM_GOTO_TIED_OUTPUT) \
+>>>>>>> 37b11c7 (ioctl method)
     $(wildcard include/config/ARCH_HAS_COPY_MC) \
     $(wildcard include/config/X86_INTEL_USERCOPY) \
   arch/x86/include/asm/smap.h \
   arch/x86/include/asm/extable.h \
+<<<<<<< HEAD
+=======
+    $(wildcard include/config/BPF_JIT) \
+  include/asm-generic/access_ok.h \
+    $(wildcard include/config/ALTERNATE_USER_ADDRESS_SPACE) \
+>>>>>>> 37b11c7 (ioctl method)
   arch/x86/include/asm/uaccess_64.h \
   include/linux/cred.h \
     $(wildcard include/config/DEBUG_CREDENTIALS) \
@@ -894,6 +1298,10 @@ deps_/home/charliedoern/Documents/LS3/ls3.o := \
     $(wildcard include/config/ASSOCIATIVE_ARRAY) \
   include/linux/sched/user.h \
     $(wildcard include/config/WATCH_QUEUE) \
+<<<<<<< HEAD
+=======
+  include/linux/percpu_counter.h \
+>>>>>>> 37b11c7 (ioctl method)
   include/linux/rcu_sync.h \
   include/linux/delayed_call.h \
   include/linux/uuid.h \
@@ -902,12 +1310,35 @@ deps_/home/charliedoern/Documents/LS3/ls3.o := \
   include/linux/ioprio.h \
   include/linux/sched/rt.h \
   include/linux/iocontext.h \
+<<<<<<< HEAD
   include/linux/fs_types.h \
   include/linux/mount.h \
   include/uapi/linux/fs.h \
   include/linux/quota.h \
     $(wildcard include/config/QUOTA_NETLINK_INTERFACE) \
   include/linux/percpu_counter.h \
+=======
+    $(wildcard include/config/BLK_ICQ) \
+  include/uapi/linux/ioprio.h \
+  include/linux/fs_types.h \
+  include/linux/mount.h \
+  include/linux/mnt_idmapping.h \
+  include/linux/slab.h \
+    $(wildcard include/config/DEBUG_SLAB) \
+    $(wildcard include/config/FAILSLAB) \
+    $(wildcard include/config/SLAB) \
+    $(wildcard include/config/SLUB) \
+    $(wildcard include/config/SLOB) \
+  include/linux/percpu-refcount.h \
+  include/linux/kasan.h \
+    $(wildcard include/config/KASAN_STACK) \
+    $(wildcard include/config/KASAN_VMALLOC) \
+    $(wildcard include/config/KASAN_INLINE) \
+  include/linux/kasan-enabled.h \
+  include/uapi/linux/fs.h \
+  include/linux/quota.h \
+    $(wildcard include/config/QUOTA_NETLINK_INTERFACE) \
+>>>>>>> 37b11c7 (ioctl method)
   include/uapi/linux/dqblk_xfs.h \
   include/linux/dqblk_v1.h \
   include/linux/dqblk_v2.h \
@@ -916,10 +1347,18 @@ deps_/home/charliedoern/Documents/LS3/ls3.o := \
   include/uapi/linux/quota.h \
   include/linux/nfs_fs_i.h \
   include/linux/highmem.h \
+<<<<<<< HEAD
   include/linux/mm.h \
     $(wildcard include/config/HAVE_ARCH_MMAP_RND_BITS) \
     $(wildcard include/config/HAVE_ARCH_MMAP_RND_COMPAT_BITS) \
     $(wildcard include/config/DEBUG_INFO_BTF) \
+=======
+  include/linux/cacheflush.h \
+  arch/x86/include/asm/cacheflush.h \
+  include/linux/mm.h \
+    $(wildcard include/config/HAVE_ARCH_MMAP_RND_BITS) \
+    $(wildcard include/config/HAVE_ARCH_MMAP_RND_COMPAT_BITS) \
+>>>>>>> 37b11c7 (ioctl method)
     $(wildcard include/config/ARCH_USES_HIGH_VMA_FLAGS) \
     $(wildcard include/config/ARCH_HAS_PKEYS) \
     $(wildcard include/config/PPC) \
@@ -929,9 +1368,12 @@ deps_/home/charliedoern/Documents/LS3/ls3.o := \
     $(wildcard include/config/ARM64_MTE) \
     $(wildcard include/config/HAVE_ARCH_USERFAULTFD_MINOR) \
     $(wildcard include/config/SHMEM) \
+<<<<<<< HEAD
     $(wildcard include/config/DEV_PAGEMAP_OPS) \
     $(wildcard include/config/DEVICE_PRIVATE) \
     $(wildcard include/config/PCI_P2PDMA) \
+=======
+>>>>>>> 37b11c7 (ioctl method)
     $(wildcard include/config/ARCH_HAS_PTE_SPECIAL) \
     $(wildcard include/config/ARCH_HAS_PTE_DEVMAP) \
     $(wildcard include/config/DEBUG_VM_RB) \
@@ -941,18 +1383,30 @@ deps_/home/charliedoern/Documents/LS3/ls3.o := \
     $(wildcard include/config/DEBUG_PAGEALLOC) \
     $(wildcard include/config/HUGETLBFS) \
     $(wildcard include/config/MAPPING_DIRTY_HELPERS) \
+<<<<<<< HEAD
   include/linux/mmap_lock.h \
   include/linux/percpu-refcount.h \
   include/linux/page_ext.h \
   include/linux/stacktrace.h \
     $(wildcard include/config/STACKTRACE) \
     $(wildcard include/config/ARCH_STACKWALK) \
+=======
+    $(wildcard include/config/ANON_VMA_NAME) \
+  include/linux/mmap_lock.h \
+  include/linux/page_ext.h \
+  include/linux/stacktrace.h \
+    $(wildcard include/config/ARCH_STACKWALK) \
+    $(wildcard include/config/STACKTRACE) \
+>>>>>>> 37b11c7 (ioctl method)
     $(wildcard include/config/HAVE_RELIABLE_STACKTRACE) \
   include/linux/stackdepot.h \
     $(wildcard include/config/STACKDEPOT) \
   include/linux/page_ref.h \
     $(wildcard include/config/DEBUG_PAGE_REF) \
+<<<<<<< HEAD
   include/linux/memremap.h \
+=======
+>>>>>>> 37b11c7 (ioctl method)
   include/linux/sizes.h \
   include/linux/pgtable.h \
     $(wildcard include/config/HIGHPTE) \
@@ -964,11 +1418,21 @@ deps_/home/charliedoern/Documents/LS3/ls3.o := \
     $(wildcard include/config/X86_ESPFIX64) \
   arch/x86/include/asm/pgtable.h \
     $(wildcard include/config/DEBUG_WX) \
+<<<<<<< HEAD
   arch/x86/include/asm/pkru.h \
   arch/x86/include/asm/fpu/xstate.h \
   arch/x86/include/asm/fpu/api.h \
     $(wildcard include/config/X86_DEBUG_FPU) \
   include/asm-generic/pgtable_uffd.h \
+=======
+    $(wildcard include/config/PAGE_TABLE_CHECK) \
+  arch/x86/include/asm/pkru.h \
+  arch/x86/include/asm/fpu/api.h \
+    $(wildcard include/config/X86_DEBUG_FPU) \
+  arch/x86/include/asm/coco.h \
+  include/asm-generic/pgtable_uffd.h \
+  include/linux/page_table_check.h \
+>>>>>>> 37b11c7 (ioctl method)
   arch/x86/include/asm/pgtable_64.h \
   arch/x86/include/asm/fixmap.h \
     $(wildcard include/config/PROVIDE_OHCI1394_DMA_INIT) \
@@ -979,10 +1443,13 @@ deps_/home/charliedoern/Documents/LS3/ls3.o := \
   arch/x86/include/uapi/asm/vsyscall.h \
   include/asm-generic/fixmap.h \
   arch/x86/include/asm/pgtable-invert.h \
+<<<<<<< HEAD
   include/linux/kasan.h \
     $(wildcard include/config/KASAN_STACK) \
     $(wildcard include/config/KASAN_VMALLOC) \
     $(wildcard include/config/KASAN_INLINE) \
+=======
+>>>>>>> 37b11c7 (ioctl method)
   include/linux/huge_mm.h \
   include/linux/sched/coredump.h \
     $(wildcard include/config/CORE_DUMP_DEFAULT_ELF_HEADERS) \
@@ -993,6 +1460,11 @@ deps_/home/charliedoern/Documents/LS3/ls3.o := \
   include/linux/vm_event_item.h \
     $(wildcard include/config/MEMORY_BALLOON) \
     $(wildcard include/config/BALLOON_COMPACTION) \
+<<<<<<< HEAD
+=======
+    $(wildcard include/config/ZSWAP) \
+  include/asm-generic/cacheflush.h \
+>>>>>>> 37b11c7 (ioctl method)
   include/linux/hardirq.h \
   include/linux/context_tracking_state.h \
     $(wildcard include/config/CONTEXT_TRACKING) \
@@ -1010,8 +1482,11 @@ deps_/home/charliedoern/Documents/LS3/ls3.o := \
     $(wildcard include/config/X86_MCE_AMD) \
     $(wildcard include/config/X86_HV_CALLBACK_VECTOR) \
     $(wildcard include/config/HYPERV) \
+<<<<<<< HEAD
   arch/x86/include/asm/cacheflush.h \
   include/asm-generic/cacheflush.h \
+=======
+>>>>>>> 37b11c7 (ioctl method)
   include/linux/highmem-internal.h \
   include/linux/socket.h \
   arch/x86/include/generated/uapi/asm/socket.h \
@@ -1027,6 +1502,10 @@ deps_/home/charliedoern/Documents/LS3/ls3.o := \
   include/uapi/linux/hdlc/ioctl.h \
   include/linux/net.h \
   include/linux/random.h \
+<<<<<<< HEAD
+=======
+    $(wildcard include/config/VMGENID) \
+>>>>>>> 37b11c7 (ioctl method)
     $(wildcard include/config/ARCH_RANDOM) \
   include/linux/once.h \
   include/uapi/linux/random.h \
@@ -1035,6 +1514,7 @@ deps_/home/charliedoern/Documents/LS3/ls3.o := \
   include/linux/prandom.h \
   arch/x86/include/asm/archrandom.h \
   include/linux/sockptr.h \
+<<<<<<< HEAD
   include/linux/slab.h \
     $(wildcard include/config/DEBUG_SLAB) \
     $(wildcard include/config/FAILSLAB) \
@@ -1044,6 +1524,8 @@ deps_/home/charliedoern/Documents/LS3/ls3.o := \
     $(wildcard include/config/SLOB) \
     $(wildcard include/config/CC_IS_GCC) \
     $(wildcard include/config/CLANG_VERSION) \
+=======
+>>>>>>> 37b11c7 (ioctl method)
   include/uapi/linux/net.h \
   include/linux/if_ether.h \
   include/linux/skbuff.h \
@@ -1052,20 +1534,36 @@ deps_/home/charliedoern/Documents/LS3/ls3.o := \
     $(wildcard include/config/NET_TC_SKB_EXT) \
     $(wildcard include/config/NET_SOCK_MSG) \
     $(wildcard include/config/SKB_EXTENSIONS) \
+<<<<<<< HEAD
     $(wildcard include/config/IPV6_NDISC_NODETYPE) \
     $(wildcard include/config/NET_SWITCHDEV) \
     $(wildcard include/config/NET_CLS_ACT) \
     $(wildcard include/config/NET_REDIRECT) \
+=======
+    $(wildcard include/config/NET_CLS_ACT) \
+    $(wildcard include/config/IPV6_NDISC_NODETYPE) \
+    $(wildcard include/config/NET_SWITCHDEV) \
+    $(wildcard include/config/NET_REDIRECT) \
+    $(wildcard include/config/NETFILTER_SKIP_EGRESS) \
+>>>>>>> 37b11c7 (ioctl method)
     $(wildcard include/config/TLS_DEVICE) \
     $(wildcard include/config/NET_SCHED) \
     $(wildcard include/config/NET_RX_BUSY_POLL) \
     $(wildcard include/config/XPS) \
     $(wildcard include/config/NETWORK_SECMARK) \
+<<<<<<< HEAD
+=======
+    $(wildcard include/config/DEBUG_NET) \
+>>>>>>> 37b11c7 (ioctl method)
     $(wildcard include/config/PAGE_POOL) \
     $(wildcard include/config/HAVE_EFFICIENT_UNALIGNED_ACCESS) \
     $(wildcard include/config/NETWORK_PHY_TIMESTAMPING) \
     $(wildcard include/config/XFRM) \
     $(wildcard include/config/MPTCP) \
+<<<<<<< HEAD
+=======
+    $(wildcard include/config/MCTP_FLOWS) \
+>>>>>>> 37b11c7 (ioctl method)
     $(wildcard include/config/NETFILTER_XT_TARGET_TRACE) \
     $(wildcard include/config/NF_TABLES) \
     $(wildcard include/config/IP_VS) \
@@ -1091,6 +1589,7 @@ deps_/home/charliedoern/Documents/LS3/ls3.o := \
   arch/x86/include/generated/asm/early_ioremap.h \
   include/asm-generic/early_ioremap.h \
     $(wildcard include/config/GENERIC_EARLY_IOREMAP) \
+<<<<<<< HEAD
   include/asm-generic/iomap.h \
     $(wildcard include/config/HAS_IOPORT_MAP) \
     $(wildcard include/config/PCI) \
@@ -1102,6 +1601,19 @@ deps_/home/charliedoern/Documents/LS3/ls3.o := \
     $(wildcard include/config/GENERIC_IOREMAP) \
     $(wildcard include/config/VIRT_TO_BUS) \
     $(wildcard include/config/GENERIC_DEVMEM_IS_ALLOWED) \
+=======
+  arch/x86/include/asm/shared/io.h \
+  include/asm-generic/iomap.h \
+    $(wildcard include/config/HAS_IOPORT_MAP) \
+  include/asm-generic/pci_iomap.h \
+    $(wildcard include/config/PCI) \
+    $(wildcard include/config/NO_GENERIC_PCI_IOPORT_MAP) \
+    $(wildcard include/config/GENERIC_PCI_IOMAP) \
+  include/asm-generic/io.h \
+    $(wildcard include/config/GENERIC_IOMAP) \
+    $(wildcard include/config/GENERIC_IOREMAP) \
+    $(wildcard include/config/VIRT_TO_BUS) \
+>>>>>>> 37b11c7 (ioctl method)
   include/linux/logic_pio.h \
     $(wildcard include/config/INDIRECT_PIO) \
   include/linux/fwnode.h \
@@ -1122,11 +1634,24 @@ deps_/home/charliedoern/Documents/LS3/ls3.o := \
   include/uapi/linux/if_packet.h \
   include/net/flow.h \
   include/net/page_pool.h \
+<<<<<<< HEAD
   include/linux/ptr_ring.h \
   include/linux/netfilter/nf_conntrack_common.h \
   include/uapi/linux/netfilter/nf_conntrack_common.h \
+=======
+    $(wildcard include/config/PAGE_POOL_STATS) \
+  include/linux/ptr_ring.h \
+  include/linux/netfilter/nf_conntrack_common.h \
+  include/uapi/linux/netfilter/nf_conntrack_common.h \
+  include/net/net_debug.h \
+>>>>>>> 37b11c7 (ioctl method)
   include/linux/processor.h \
 
 /home/charliedoern/Documents/LS3/ls3.o: $(deps_/home/charliedoern/Documents/LS3/ls3.o)
 
 $(deps_/home/charliedoern/Documents/LS3/ls3.o):
+<<<<<<< HEAD
+=======
+
+/home/charliedoern/Documents/LS3/ls3.o: $(wildcard ./tools/objtool/objtool)
+>>>>>>> 37b11c7 (ioctl method)
