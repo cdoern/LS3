@@ -14,7 +14,7 @@ func GetObject() {
 
 }
 
-func ListObject() {
+func ListObjects() {
 
 }
 

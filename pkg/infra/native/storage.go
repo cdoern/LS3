@@ -2,22 +2,26 @@
 
 package native
 
-func CopyObject() {
+import (
+	"LS3/ls3"
+)
 
+func (s *StorageEngine) CopyObject() error {
+	return nil
 }
 
-func DeleteObject() {
-
+func (s *StorageEngine) DeleteObject(key string) error {
+	return ls3.DeleteObject(key)
 }
 
-func GetObject() {
-
+func (s *StorageEngine) GetObject(key string) ([]byte, error) {
+	return ls3.GetObject(key)
 }
 
-func ListObject() {
-
+func (s *StorageEngine) ListObjects() error {
+	return nil
 }
 
-func PutObject() {
-
+func (s *StorageEngine) PutObject(key string, value []byte) error {
+	return ls3.PutObject(key, value)
 }

@@ -37,3 +37,22 @@ bin/ls3: .gopathok $(SOURCES) go.mod go.sum
 
 .PHONY: ls3
 ls3: bin/ls3
+
+.PHONY: vendor
+vendor:
+	go mod tidy
+	go mod vendor
+
+
+obj-m += ls3.o
+CONFIG_MODULE_SIG=n
+
+.PHONY: c
+c: 
+	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
+
+.PHONY: clean
+clean: 
+	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) clean
+	go mod tidy
+	go mod vendor
