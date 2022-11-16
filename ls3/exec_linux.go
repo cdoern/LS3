@@ -101,6 +101,8 @@ func GetObject(key string) ([]byte, error) {
 
 	// we passed too much data
 	if send.value_len < 1000 {
+		valueArr = make([]byte, send.value_len)
+		send.value = unsafe.Pointer(&valueArr[0])
 		_, _, errno := syscall.Syscall(
 			syscall.SYS_IOCTL,
 			uintptr(f.Fd()),

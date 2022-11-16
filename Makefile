@@ -56,3 +56,7 @@ clean:
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) clean
 	go mod tidy
 	go mod vendor
+
+.PHONY: zero
+zero:
+	dd if=/dev/zero of=/home/charliedoern/Documents/testing.txt bs=1000 count=1000000

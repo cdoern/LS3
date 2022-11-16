@@ -34,7 +34,7 @@ struct appendable_data {
     char *value; // change to void*
 };
 
-struct appendable_data all_data[__INT_MAX__];
+struct appendable_data all_data[1000000];
 int tracker = 0;
 loff_t end_pos = 0;
 loff_t write_pos = 0;
@@ -287,8 +287,9 @@ static int my_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
                 return -EFAULT;
             }
             // flip around logic
+            write_pos = end_pos;
+            leftover = 0;
             if (place == tracker) {
-                write_pos = end_pos;
                 tracker = tracker + 1;
             } else {
                 if (filp) {
@@ -371,14 +372,14 @@ static int my_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
                 ret = kernel_read(filp, curr_key, key_len, &readPos);
                 curr_key[key_len] = 0;
                 if ((strcmp(curr_key, key) != 0)) {
-                    readPos = readPos + value_len + 1;
+                    readPos = readPos + value_len;
                     continue;
                 } 
-                int size = key_len + value_len + 1;
+                int size = key_len + value_len;
                 char* appendFile = kmalloc(size, GFP_USER);
                 memset(appendFile, 0, size);  
                 //appendFile[0] = 0;
-                appendFile[size-1] = 0;
+                //qappendFile[size-1] = 0;
                 void* key_mem_addr = NULL;
                 key_mem_addr = appendFile;
                 readPos -= key_len;
