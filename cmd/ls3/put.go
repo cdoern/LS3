@@ -38,19 +38,20 @@ func init() {
 func put(cmd *cobra.Command, args []string) error {
 	eng, _ := common.NewStorageEngine()
 	var err error
-	val := []byte(args[1])
+	val := []byte("")
 	name := ""
 	if isFile {
-		val, err = os.ReadFile(args[1])
+		val, err = os.ReadFile(args[0])
 		if err != nil {
 			return err
 		}
-		info, err := os.Stat(args[1])
+		info, err := os.Stat(args[0])
 		if err != nil {
 			return err
 		}
 		name = info.Name()
 	} else {
+		val = []byte(args[1])
 		name = args[0]
 	}
 	err = eng.PutObject(name, val)

@@ -101,6 +101,8 @@ func GetObject(key string) ([]byte, error) {
 
 	// we passed too much data
 	if send.value_len < 1000 {
+		valueArr = make([]byte, send.value_len)
+		send.value = unsafe.Pointer(&valueArr[0])
 		_, _, errno := syscall.Syscall(
 			syscall.SYS_IOCTL,
 			uintptr(f.Fd()),
@@ -114,8 +116,22 @@ func GetObject(key string) ([]byte, error) {
 			return nil, err
 		}
 	} else {
+		valueArr = make([]byte, send.value_len)
+		send.value = unsafe.Pointer(&valueArr[0])
+		_, _, errno := syscall.Syscall(
+			syscall.SYS_IOCTL,
+			uintptr(f.Fd()),
+			uintptr(0x0001), // READ
+			uintptr(unsafe.Pointer(&send)),
+		)
+		if errno != 0 {
+			err = errno
+		}
+		if err != nil {
+			return nil, err
+		}
 		// we needed to truncate in the kernel
-		err = fmt.Errorf("value was turncated, should have been %d bytes", send.value_len)
+		//err = fmt.Errorf("value was turncated, should have been %d bytes", send.value_len)
 	}
 	return valueArr, err
 }
