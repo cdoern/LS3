@@ -48,4 +48,9 @@ The below table represents some basi operations and their times as of December 2
 
 
 ### Related work
-- (find these)
+- http://www.eecs.harvard.edu/~michaelm/postscripts/im2005b.pdf
+- https://dl.acm.org/doi/10.1145/356770.356776
+- https://dl.acm.org/doi/abs/10.1145/146941.146943
+- https://www.microsoft.com/en-us/research/wp-content/uploads/2007/04/TR-2005-176.pdf
+
+
