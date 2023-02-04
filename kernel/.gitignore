@@ -1,0 +1,8 @@
+# Build artifacts for kernel module
+*.o
+*.ko
+*.mod
+*.mod.c
+.*.cmd
+Module.symvers
+modules.order
