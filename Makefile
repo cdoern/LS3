@@ -40,6 +40,7 @@ ls3: bin/ls3
 
 .PHONY: vendor
 vendor:
+	# go mod init
 	go mod tidy
 	go mod vendor
 
@@ -49,13 +50,11 @@ CONFIG_MODULE_SIG=n
 
 .PHONY: c
 c: 
-	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
+	make -C /lib/modules/$(shell uname -r)/build M=$(PWD)/kernel modules
 
 .PHONY: clean
 clean: 
-	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) clean
-	go mod tidy
-	go mod vendor
+	make -C /lib/modules/$(shell uname -r)/build M=$(PWD)/kernel clean
 
 .PHONY: zero
 zero:
