@@ -16,6 +16,9 @@
 #include <linux/stddef.h>
 #include <linux/uaccess.h>
 
+
+#define pr_fmt(fmt) "%s:%s: " fmt, KBUILD_MODNAME, __func__
+
 #define TMPSIZE 20
 #define get_fs()        (current_thread_info()->addr_limit)
 #define set_fs(x)       (current_thread_info()->addr_limit = (x))
@@ -41,7 +44,6 @@ loff_t write_pos = 0;
 uint64_t leftover = 0;
 struct file *filp;
 
-
 struct KEConfig_t {
     char ethInfName[8];
     char srcMacAdr[15];
@@ -49,11 +51,15 @@ struct KEConfig_t {
     int ifindex;
 };
 
+static char* backing_file; //  "/home/charliedoern/Documents/testing.txt"
+
 static struct KEConfig_t KECfg;
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Charles Doern");
 MODULE_DESCRIPTION("LS3 Block Storage");
+module_param(backing_file, charp, 0644);
+MODULE_PARM_DESC(backing_file, "Path to backing file or SSD");
 
 static int write_array(char *key, char *value, uint64_t key_len, uint64_t value_len) {
         struct appendable_data append;
@@ -569,13 +575,28 @@ static struct super_block *lfs_get_super(struct file_system_type *fst,
 
 
 static int __init main(void) {
-    int retval;
-    printk(KERN_INFO "Hello world!\n");
-    // make it world readable chmod
-    filp = filp_open("/home/charliedoern/Documents/testing.txt", O_RDWR, 0644);
+    pr_info("Initializing LS3 filesystem\n");
+    if (backing_file == NULL) {
+        pr_err("failed to initialize: backing_file is NULL\n");
+        return -EINVAL;
+    }
+    if (backing_file[0] == '\0') {
+        pr_err("failed to initialize: backing_file is emptystring\n");
+        return -EINVAL;
+    }
+    pr_info("opening backing_file '%s'\n", backing_file);
+    // todo: use chmod to make file world readable?
+    filp = filp_open(backing_file, O_RDWR, 0644);
+    if (IS_ERR(filp)) {
+        pr_err("failed to initialize: can't open '%s'\n", backing_file);
+        return -EINVAL;
+    }
+
+    pr_info("scanning for end position\n");
     end_pos = scan_for_end();
-    retval = misc_register(&my_device);
-	return retval;
+
+    int retval = misc_register(&my_device);
+    return retval;
     //return register_filesystem(&lfs_type);
 }
 
