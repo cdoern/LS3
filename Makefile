@@ -1,6 +1,7 @@
 GO ?= go
 SOURCES = $(shell find . -path './.*' -prune -o \( \( -name '*.go' -o -name '*.c' \) -a ! -name '*_test.go' \) -print)
 PROJECT := github.com/cdoern/LS3
+BACKING_FILE := /home/charliedoern/Documents/testing.txt
 
 ifeq ($(GOPATH),)
 export GOPATH := $(HOME)/go
@@ -58,4 +59,12 @@ clean:
 
 .PHONY: zero
 zero:
-	dd if=/dev/zero of=/home/charliedoern/Documents/testing.txt bs=1000 count=1000000
+	dd if=/dev/zero of=$(BACKING_FILE) bs=1000 count=1000000
+
+.PHONY: insmod
+insmod:
+	sudo insmod kernel/ls3.ko backing_file=$(BACKING_FILE)
+
+.PHONY: rmmod
+rmmod:
+	sudo rmmod ls3
