@@ -47,17 +47,8 @@ loff_t write_pos = 0;
 uint64_t leftover = 0;
 struct file *filp = NULL;
 
-struct KEConfig_t {
-    char ethInfName[8];
-    char srcMacAdr[15];
-    char destMacAdr[15];
-    int ifindex;
-};
-
 static char* backing_file; // e.g. "/home/charliedoern/Documents/testing.txt"
 static int verbose = 0; // controls how much printing
-
-static struct KEConfig_t KECfg;
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Charles Doern");
