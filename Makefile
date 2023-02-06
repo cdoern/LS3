@@ -63,7 +63,7 @@ zero:
 
 .PHONY: insmod
 insmod:
-	sudo insmod kernel/ls3.ko backing_file=$(BACKING_FILE)
+	sudo insmod kernel/ls3.ko backing_file=$(BACKING_FILE) verbose=1
 
 .PHONY: rmmod
 rmmod:

@@ -17,11 +17,14 @@
 #include <linux/uaccess.h>
 
 
+// this pr_fmt macro causes printk to prefix every
+// print statement with "ls3" and a function name
 #define pr_fmt(fmt) "%s:%s: " fmt, KBUILD_MODNAME, __func__
 
 #define TMPSIZE 20
 #define get_fs()        (current_thread_info()->addr_limit)
 #define set_fs(x)       (current_thread_info()->addr_limit = (x))
+
 
 struct ioctl_data {
     uint64_t key_len;
@@ -42,7 +45,7 @@ int tracker = 0;
 loff_t end_pos = 0;
 loff_t write_pos = 0;
 uint64_t leftover = 0;
-struct file *filp;
+struct file *filp = NULL;
 
 struct KEConfig_t {
     char ethInfName[8];
@@ -51,7 +54,8 @@ struct KEConfig_t {
     int ifindex;
 };
 
-static char* backing_file; //  "/home/charliedoern/Documents/testing.txt"
+static char* backing_file; // e.g. "/home/charliedoern/Documents/testing.txt"
+static int verbose = 0; // controls how much printing
 
 static struct KEConfig_t KECfg;
 
@@ -60,6 +64,8 @@ MODULE_AUTHOR("Charles Doern");
 MODULE_DESCRIPTION("LS3 Block Storage");
 module_param(backing_file, charp, 0644);
 MODULE_PARM_DESC(backing_file, "Path to backing file or SSD");
+module_param(verbose, int, 0644);
+MODULE_PARM_DESC(verbose, "Amount of debug printing");
 
 static int write_array(char *key, char *value, uint64_t key_len, uint64_t value_len) {
         struct appendable_data append;
@@ -577,34 +583,55 @@ static struct super_block *lfs_get_super(struct file_system_type *fst,
 static int __init main(void) {
     pr_info("Initializing LS3 filesystem\n");
     if (backing_file == NULL) {
-        pr_err("failed to initialize: backing_file is NULL\n");
+        pr_err("Failed to initialize: backing_file is NULL\n");
         return -EINVAL;
     }
     if (backing_file[0] == '\0') {
-        pr_err("failed to initialize: backing_file is emptystring\n");
+        pr_err("Failed to initialize: backing_file is emptystring\n");
         return -EINVAL;
     }
-    pr_info("opening backing_file '%s'\n", backing_file);
+    pr_info("Using backing_file '%s'\n", backing_file);
     // todo: use chmod to make file world readable?
     filp = filp_open(backing_file, O_RDWR, 0644);
-    if (IS_ERR(filp)) {
-        pr_err("failed to initialize: can't open '%s'\n", backing_file);
+    if (IS_ERR_OR_NULL(filp)) {
+        pr_err("Failed to initialize: can't open '%s'\n", backing_file);
+        filp = NULL;
         return -EINVAL;
     }
+    if (verbose > 0) pr_info("Opened backing file\n");
 
-    pr_info("scanning for end position\n");
+    if (verbose > 0) pr_info("Scanning for end position\n");
     end_pos = scan_for_end();
 
-    int retval = misc_register(&my_device);
-    return retval;
-    //return register_filesystem(&lfs_type);
+    if (verbose > 0) pr_info("Registering module\n");
+    int err = misc_register(&my_device);
+    if (err != 0) {
+        pr_err("Failed to register: err=%d\n", err);
+        if (verbose > 0) pr_info("Closing backing file\n");
+        filp_close(filp, NULL);
+        filp = NULL;
+        return err;
+    }
+   
+    // TODO: register as a filesystem
+    // err = register_filesystem(&lfs_type);
+
+    return 0;
 }
 
 static void __exit cleanup(void)
 {
-    filp_close(filp, NULL);
+    pr_info("Cleaning up LS3 filesystem\n");
+    if (!IS_ERR_OR_NULL(filp)) {
+        if (verbose > 0) pr_info("Closing backing file\n");
+        filp_close(filp, NULL);
+        filp = NULL;
+    }
+
+    if (verbose > 0) pr_info("Unregistering module\n");
     misc_deregister(&my_device);
-    printk(KERN_INFO "Cleaning up module.\n");
+
+    pr_info("Completed cleanup\n");
 }
 
 // need to get user space -> kernel space pointer for laat ioctl arg
