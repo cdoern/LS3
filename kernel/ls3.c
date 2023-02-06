@@ -21,6 +21,12 @@
 // print statement with "ls3" and a function name
 #define pr_fmt(fmt) "%s:%s: " fmt, KBUILD_MODNAME, __func__
 
+// The ioctl syscall is the primary userspace entrypoint to ls3.
+// FIXME: where did these numbers come from?
+#define LS3_IOCTL_CMD_GETOBJECT (0x0001) // IOCTL_CMD_READ?
+#define LS3_IOCTL_CMD_PUTOBJECT (0x0707) // IOCTL_CMD_RDWR?
+#define LS3_IOCTL_CMD_DELOBJECT (0x8000) // IOCTL_CMD_DELETE?
+
 struct ioctl_data {
     uint64_t key_len;
     uint64_t value_len;
@@ -248,7 +254,7 @@ static int ls3_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
     int ret;
     printk(KERN_INFO "%u\n", cmd);
     switch(cmd) {
-        case 0x0707:
+        case LS3_IOCTL_CMD_PUTOBJECT:
             printk(KERN_INFO "recieved.\n");
             if (copy_from_user(&data, (void __user*)arg, 32)) {
                 return -EFAULT;
@@ -293,7 +299,7 @@ static int ls3_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
             //char data[data.key_len+data.value_len+1] = key + " " + value;
 
             break;
-        case 0x0001:
+        case LS3_IOCTL_CMD_GETOBJECT:
             if (copy_from_user(&data, (void __user*)arg, 32)) {
                 return -EFAULT;
             }
@@ -318,7 +324,7 @@ static int ls3_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
                 return -EFAULT;
             }
             break;
-        case 0x8000:
+        case LS3_IOCTL_CMD_DELOBJECT:
             if (copy_from_user(&data, (void __user*)arg, 32)) {
                 return -EFAULT;
             }
