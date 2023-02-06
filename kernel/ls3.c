@@ -241,15 +241,6 @@ static int read_file(struct ioctl_data *data, char *key) {
     return -EBADF;
 }
 
-static void delete_array(void) {
-
-}
-
-static void delete_file(void) {
-
-}
-
-
 static int ls3_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
     struct ioctl_data data;
@@ -397,24 +388,23 @@ static int ls3_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 static int ls3_open(struct inode *inode, struct file *file)
 {
-    return 0;
+    return 0; // TODO
 }
 
 static int ls3_release(struct inode *inode, struct file *file)
 {
-    return 0;
+    return 0; // TODO
 }
 
 //populate data struct for file operations
 static const struct file_operations ls3_fops = {
     .owner = THIS_MODULE,
     .open = ls3_open,
-    // .read = lfs_read_file,
-    // .write = lfs_write_file,
-    // .open = &ls3_open,
+    // .read = lfs_read_file, // TODO
+    // .write = lfs_write_file, // TODO
     .release = &ls3_release,
-    .unlocked_ioctl = (void*)&ls3_ioctl,
-    .compat_ioctl = (void*)&ls3_ioctl
+    // .compat_ioctl = (void*)&ls3_ioctl, // Do not support 32-bit ioctls
+    .unlocked_ioctl = (void*)&ls3_ioctl
 };
 
 //populate miscdevice data structure
