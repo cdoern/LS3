@@ -21,11 +21,6 @@
 // print statement with "ls3" and a function name
 #define pr_fmt(fmt) "%s:%s: " fmt, KBUILD_MODNAME, __func__
 
-#define TMPSIZE 20
-#define get_fs()        (current_thread_info()->addr_limit)
-#define set_fs(x)       (current_thread_info()->addr_limit = (x))
-
-
 struct ioctl_data {
     uint64_t key_len;
     uint64_t value_len;
@@ -255,7 +250,7 @@ static void delete_file(void) {
 }
 
 
-static int my_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+static int ls3_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
     struct ioctl_data data;
     printk(KERN_INFO "ioctl.\n");
@@ -400,33 +395,33 @@ static int my_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
     return 0;
 }
 
-static int my_open(struct inode *inode, struct file *file)
+static int ls3_open(struct inode *inode, struct file *file)
 {
     return 0;
 }
 
-static int my_release(struct inode *inode, struct file *file)
+static int ls3_release(struct inode *inode, struct file *file)
 {
     return 0;
 }
 
 //populate data struct for file operations
-static const struct file_operations my_fops = {
+static const struct file_operations ls3_fops = {
     .owner = THIS_MODULE,
-    .open = my_open,
+    .open = ls3_open,
     // .read = lfs_read_file,
     // .write = lfs_write_file,
-    // .open = &my_open,
-    .release = &my_release,
-    .unlocked_ioctl = (void*)&my_ioctl,
-    .compat_ioctl = (void*)&my_ioctl
+    // .open = &ls3_open,
+    .release = &ls3_release,
+    .unlocked_ioctl = (void*)&ls3_ioctl,
+    .compat_ioctl = (void*)&ls3_ioctl
 };
 
 //populate miscdevice data structure
-static struct miscdevice my_device = {
+static struct miscdevice ls3_device = {
     MISC_DYNAMIC_MINOR,
     "ls3",
-    &my_fops,
+    &ls3_fops,
     .mode = S_IRWXUGO
 };
 
@@ -454,7 +449,7 @@ static int __init main(void) {
     end_pos = scan_for_end();
 
     if (verbose > 0) pr_info("Registering module\n");
-    int err = misc_register(&my_device);
+    int err = misc_register(&ls3_device);
     if (err != 0) {
         pr_err("Failed to register: err=%d\n", err);
         if (verbose > 0) pr_info("Closing backing file\n");
@@ -479,12 +474,10 @@ static void __exit cleanup(void)
     }
 
     if (verbose > 0) pr_info("Unregistering module\n");
-    misc_deregister(&my_device);
+    misc_deregister(&ls3_device);
 
     pr_info("Completed cleanup\n");
 }
 
-// need to get user space -> kernel space pointer for laat ioctl arg
-// safeusercopy, usercopy, kernelcopy
-    module_init(main)
+module_init(main)
 module_exit(cleanup)

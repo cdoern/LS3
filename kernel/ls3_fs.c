@@ -1,3 +1,6 @@
+#define TMPSIZE 20
+#define get_fs()        (current_thread_info()->addr_limit)
+#define set_fs(x)       (current_thread_info()->addr_limit = (x))
 
 /*
 static struct super_operations lfs_s_ops = {
@@ -80,7 +83,7 @@ static struct dentry *lfs_create_file (struct super_block *sb,
 	inode = lfs_make_inode(sb, S_IFREG | 0644);
 	if (! inode)
 		goto out_dput;
-	inode->i_fop = &my_fops;
+	inode->i_fop = &ls3_fops;
 	inode->u.generic_ip = data;
 
 	d_add(dentry, inode);
