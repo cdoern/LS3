@@ -38,6 +38,25 @@
 // the Amazon S3 recommendations.
 #define ENFORCE_ASCII_KEY_NAMES
 
+// Helper onstants for MB, GB, and a reasonable minimum backing file size
+#define MiB  (1024*1024L)
+#define GiB  (1024*MiB)
+#define MIN_BACKING_FILE_SIZE (1*MiB)
+
+// Layout of data on disk (SSD) is a series of records, starting at offset 0,
+// and ending with an invalid record. A valid record looks like:
+//
+// +-- 8 bytes --+-- 8 bytes --+------ X bytes --------+------ Y bytes -----+
+// |      X      |      Y      | ascii, non-terminated |      raw bytes     |
+// +-- key_len --+-- val_len --+-------- key ----------+------- value ------+
+//
+// A valid, full record will have
+//    key_len > 0 and key[0] != 0
+// A valid but empty record will have
+//    key_len > 0, data_len == 0, and key[0] == 0
+// The record is invalid when
+//    key_len = 0
+
 struct ioctl_data {
     uint64_t key_len;
     uint64_t value_len;
@@ -55,6 +74,7 @@ struct appendable_data {
 struct appendable_data all_data[1000000];
 int tracker = 0;
 loff_t end_pos = 0;
+loff_t backing_size = 0;
 loff_t write_pos = 0;
 uint64_t leftover = 0;
 struct file *filp = NULL;
@@ -470,6 +490,23 @@ static int __init main(void) {
         return -EINVAL;
     }
     if (verbose > 0) pr_info("Opened backing file\n");
+
+    loff_t size = i_size_read(file_inode(filp));
+    if (size < MIN_BACKING_FILE_SIZE) {
+        pr_err("Backing file has size %lld, but must be %lld at minimum\n",
+                size, MIN_BACKING_FILE_SIZE);
+        if (verbose > 0) pr_info("Closing backing file\n");
+        filp_close(filp, NULL);
+        filp = NULL;
+        return -EIO;
+    }
+    if (verbose > 0)
+        pr_info("Backing file has size %lld bytes (%lld.%03lld %s)\n",
+                size,
+                size > 1*GiB ? size/GiB : size/MiB,
+                size > 1*GiB ? (size%GiB)/(GiB/1000) : (size%MiB)/(MiB/1000),
+                size > 1*GiB ? "GiB" : "MiB");
+    backing_size = size;
 
     if (verbose > 0) pr_info("Scanning for end position\n");
     end_pos = scan_for_end();
