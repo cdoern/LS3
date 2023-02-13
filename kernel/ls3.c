@@ -15,11 +15,14 @@
 #include <linux/processor.h>
 #include <linux/stddef.h>
 #include <linux/uaccess.h>
+#include <linux/delay.h>
 
 
 // this pr_fmt macro causes printk to prefix every
 // print statement with "ls3" and a function name
 #define pr_fmt(fmt) "%s:%s: " fmt, KBUILD_MODNAME, __func__
+
+#define TRACE_SLOW() do { pr_info("at line %d\n", __LINE__); msleep(1000); } while (0)
 
 // The ioctl syscall is the primary userspace entrypoint to ls3.
 // FIXME: where did these numbers come from?
@@ -55,7 +58,10 @@
 // A valid but empty record will have
 //    key_len > 0, data_len == 0, and key[0] == 0
 // The record is invalid when
-//    key_len = 0
+//    key_len == 0
+// FIXME: it would make more sense to make empty records have
+//    key_len == 0, data_len > 0
+// so that we don't need to check key[0] when scanning records
 
 struct record_hdr {
     uint64_t key_len;
@@ -227,42 +233,6 @@ static void write_file(int place) {
     }
 }
 
-static int read_file(struct ioctl_data *data, char *key) {
-    if (filp) {
-        printk(KERN_INFO, "success\n");
-        //strcat(append, all_data[place].value); // memcopy instead
-        // char* append = (all_data[place].key + " " + all_data[place].value);
-        //   void* mem_addr = all_data[place].value;
-        ssize_t ret;
-        uint64_t key_len;
-        uint64_t value_len;
-        loff_t readPos = 0;
-        while(readPos < end_pos) {
-            printk(KERN_INFO "%d\n", (int)readPos);
-            ret = kernel_read(filp, &key_len, 8, &readPos);
-            ret = kernel_read(filp, &value_len, 8, &readPos);
-            char *curr_key = kmalloc(key_len+1, GFP_USER);
-            void *curr_value = kmalloc(value_len, GFP_USER);
-            printk(KERN_INFO "lengths %llu %llu\n", key_len, value_len);
-            ret = kernel_read(filp, curr_key, key_len, &readPos);
-            curr_key[key_len] = 0;
-            if ((strcmp(curr_key, key) != 0)) {
-                readPos = readPos + value_len;
-                continue;
-            } 
-            ret = kernel_read(filp, curr_value, value_len, &readPos);
-            data->value_len = value_len;
-            if (copy_to_user(data->value_uptr, curr_value, value_len)) {
-                return -EFAULT;
-            }
-            return 0;
-        }
-        return -ENOENT;
-        //pos = pos+(size+1);
-    }
-    return -EBADF;
-}
-
 static int ls3_ioctl_putobject(struct ioctl_data *params, char *key)
 {
     // copy params->val from userspace
@@ -304,18 +274,62 @@ static int ls3_ioctl_putobject(struct ioctl_data *params, char *key)
 
 static int ls3_ioctl_getobject(struct ioctl_data *params, char *key, void __user* param_uptr)
 {
-    // FIXME: cleanup here
-    //read_array(params, key);
-    int err = read_file(params, key);
-    if (err != 0) {
-        return err;
+    struct record_hdr hdr;
+    loff_t readPos = 0;
+    while (readPos < end_pos) {
+        // Read header
+        if (verbose > 0)
+            pr_info("Checking record at offset %lld\n", readPos);
+        kernel_read(filp, &hdr, RECORD_HDR_SIZE, &readPos);
+        if (hdr.key_len == 0) { // invalid record, should never happen
+            pr_err("Invalid record at offset %lld\n", readPos);
+            return -EIO;
+        }
+        if (verbose > 0)
+            pr_info("Valid record found at offset %lld with key_len=%lld value_len=%lld\n",
+                    readPos - RECORD_HDR_SIZE, hdr.key_len, hdr.value_len);
+        // Read key
+        int match;
+        {
+            char *curr_key = kmalloc(hdr.key_len+1, GFP_USER);
+            kernel_read(filp, curr_key, hdr.key_len, &readPos);
+            curr_key[hdr.key_len] = '\0';
+            match = (strcmp(curr_key, key) == 0);
+            kfree(curr_key);
+            curr_key = NULL;
+        }
+        if (!match) {
+            // skip value then keep scanning
+            readPos += hdr.value_len;
+        } else {
+            // match: read value, copy value_len and cur_value to user
+            void *curr_value = kmalloc(hdr.value_len, GFP_USER);
+            kernel_read(filp, curr_value, hdr.value_len, &readPos);
+
+            // only copy lesser amount of actual value size and user buffer size
+            ssize_t amt = hdr.value_len;
+            if (amt > params->value_len) {
+                pr_info("Returning %lld of %lld bytes\n", amt, hdr.value_len);
+                amt = params->value_len;
+            }
+            if (amt > 0 && copy_to_user(params->value_uptr, curr_value, amt)) {
+                pr_err("Failed to copy ioctl result data to userspace\n");
+                kfree(curr_value);
+                return -EFAULT;
+            }
+            // copy the actual value size to the user ioctl header
+            if (copy_to_user(param_uptr + offsetof(struct ioctl_data, value_len),
+                        &hdr.value_len, sizeof(hdr.value_len))) {
+                pr_err("Failed to copy ioctl result size to userspace\n");
+                kfree(curr_value);
+                return -EFAULT;
+            }
+            kfree(curr_value);
+            return 0;
+        }
     }
-    // FIXME: do we only really need to copy the param->data_length field?
-    if (copy_to_user(param_uptr, params, sizeof(struct ioctl_data))) {
-        pr_err("Failed to copy ioctl result data to userspace\n");
-        return -EFAULT;
-    }
-    return 0;
+    pr_info("Failed to find matching key\n");
+    return -ENOENT;
 }
 
 static int ls3_ioctl_delobject(struct ioctl_data *params, char *key)
@@ -376,13 +390,20 @@ static int validate_key_name(char *key) {
     while (*p) {
         if (*p < 0x20 || *p > 0x7E)
             return 1;
+        p++;
     }
     return 0;
 }
 #endif // ENFORCE_ASCII_KEY_NAMES
+    
 
 static int ls3_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
+    if (!registered) {
+        pr_err("ls3 not yet initialized");
+        return -ENOENT;
+    }
+
     void __user* param_uptr = (void __user*)arg;
     if (verbose > 0) pr_info("ioctl(..., cmd=0x%04x, arg=%p)n", cmd, param_uptr);
     // Sanity check
@@ -554,6 +575,7 @@ static void __exit cleanup(void)
     if (registered) {
         if (verbose > 0) pr_info("Unregistering module\n");
         misc_deregister(&ls3_device);
+        registered = 0;
     }
 
     pr_info("Completed cleanup\n");
