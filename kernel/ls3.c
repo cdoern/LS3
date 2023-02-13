@@ -47,8 +47,8 @@
 // and ending with an invalid record. A valid record looks like:
 //
 // +-- 8 bytes --+-- 8 bytes --+------ X bytes --------+------ Y bytes -----+
-// |      X      |      Y      | ascii, non-terminated |      raw bytes     |
-// +-- key_len --+-- val_len --+-------- key ----------+------- value ------+
+// |  uint64 X   |  uint64 Y   | ascii, non-terminated |      raw bytes     |
+// +-- key_len --+- value_len -+-------- key ----------+------- value ------+
 //
 // A valid, full record will have
 //    key_len > 0 and key[0] != 0
@@ -56,6 +56,13 @@
 //    key_len > 0, data_len == 0, and key[0] == 0
 // The record is invalid when
 //    key_len = 0
+
+struct record_hdr {
+    uint64_t key_len;
+    uint64_t value_len;
+};
+#define RECORD_HDR_SIZE (16)  /* sizeof(struct record_hdr) */
+#define RECORD_MIN_SIZE (17)  /* sizeof(struct record_hdr) + 1 byte for a key */
 
 struct ioctl_data {
     uint64_t key_len;
@@ -72,6 +79,8 @@ struct appendable_data {
 };
 
 struct appendable_data all_data[1000000];
+
+// TODO: consolodate all global state into a struct
 int tracker = 0;
 loff_t end_pos = 0;
 loff_t backing_size = 0;
@@ -113,25 +122,30 @@ static int write_array(char *key, char *value, uint64_t key_len, uint64_t value_
     return place;
 }
 
+// Determine offset of first invalid record. All valid records come before this
+// offset.
 static loff_t scan_for_end(void) {
-    // look for blank spot
-    // check sizes using the read size and if not big enough, skip
-    // when deleting, I kept the lenghts but deleted the data
-    uint64_t key_len;
-    uint64_t value_len;
+    struct record_hdr hdr;
     loff_t readPos = 0;
-    while(true) {
-        printk(KERN_INFO "%d\n", (int)readPos);
-        loff_t beginning = readPos;
-        int ret = kernel_read(filp, &key_len, 8, &readPos);
-        ret = kernel_read(filp, &value_len, 8, &readPos);
-        if (key_len == 0 && value_len == 0) {
-            readPos -= 16;
-            break;
+    while (readPos + RECORD_MIN_SIZE < backing_size) {
+        if (verbose > 0)
+            pr_info("Checking for valid record at offset %lld\n", readPos);
+        kernel_read(filp, &hdr, RECORD_HDR_SIZE, &readPos);
+        if (hdr.key_len == 0) {
+            readPos -= RECORD_HDR_SIZE;
+            if (verbose > 0)
+                pr_info("First invalid record at offset %lld\n", readPos);
+            return readPos;
         }
-        // ret = kernel_read(filp, curr_value, value_len, &write_pos);
-        readPos += key_len+value_len;
+        if (verbose > 0)
+            pr_info("Valid record found at offset %lld with key_len=%lld value_len=%lld\n",
+                    readPos - RECORD_HDR_SIZE, hdr.key_len, hdr.value_len);
+        readPos += hdr.key_len + hdr.value_len;
     }
+    if (readPos > backing_size)
+        pr_err("Last record overflows backing store by %lld bytes\n",
+                readPos - backing_size);
+    pr_info("No invalid records found, end is at offset %lld\n", readPos);
     return readPos;
 }
 
