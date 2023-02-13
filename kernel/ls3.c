@@ -26,12 +26,23 @@
 #define LS3_IOCTL_CMD_GETOBJECT (0x0001) // IOCTL_CMD_READ?
 #define LS3_IOCTL_CMD_PUTOBJECT (0x0707) // IOCTL_CMD_RDWR?
 #define LS3_IOCTL_CMD_DELOBJECT (0x8000) // IOCTL_CMD_DELETE?
+// Keys must be between 1 and 127 bytes.
+// Empty keys (len=0) are not allowed.
+#define LS3_MAX_KEYLEN (127)
+// Values can be any non-negative length.
+// NOTE: zero-length values are allowed!
+
+// Amazon S3 recommends (but does not require) using only certain safe
+// characters in key names. For now, ls3 can (optionally) enforce that only
+// printable ascii is used in key names, which mostly (but not exactly) matches
+// the Amazon S3 recommendations.
+#define ENFORCE_ASCII_KEY_NAMES
 
 struct ioctl_data {
     uint64_t key_len;
     uint64_t value_len;
-    void __user* key;
-    void __user* value;
+    void __user* key_uptr;
+    void __user* value_uptr;
 };
 
 struct appendable_data {
@@ -47,6 +58,7 @@ loff_t end_pos = 0;
 loff_t write_pos = 0;
 uint64_t leftover = 0;
 struct file *filp = NULL;
+int registered = 0;
 
 static char* backing_file; // e.g. "/home/charliedoern/Documents/testing.txt"
 static int verbose = 0; // controls how much printing
@@ -59,6 +71,7 @@ MODULE_PARM_DESC(backing_file, "Path to backing file or SSD");
 module_param(verbose, int, 0644);
 MODULE_PARM_DESC(verbose, "Amount of debug printing");
 
+// FIXME: eliminate
 static int write_array(char *key, char *value, uint64_t key_len, uint64_t value_len) {
     struct appendable_data append;
     append.key = key;
@@ -180,37 +193,6 @@ static void write_file(int place) {
     }
 }
 
-static int read_array(struct ioctl_data *data, char *key) {
-    int loop = 0;
-    for(loop = 0; loop < tracker; loop++) {
-        printk(KERN_INFO "key %d of %d key %s\n", loop, tracker, all_data[loop].key);
-        if (all_data[loop].key == NULL) {
-            continue;
-        }
-        if(strcmp(all_data[loop].key, key) == 0) {
-            printk(KERN_INFO "found key... retrieving\n");
-            //int ret_l =0;
-            int amountToCopy = all_data[loop].value_len;
-            // if want < have... copy = want
-            if (data->value_len < all_data[loop].value_len) {
-                amountToCopy = data->value_len;
-            }
-            // set return to what we have
-            printk(KERN_INFO "%d\n", amountToCopy);
-            data->value_len = all_data[loop].value_len;
-            //   if (copy_to_user((void __user*)arg, data, 32)) {
-            //         return -EFAULT;
-            //}
-            //printk(KERN_INFO "%s\n", all_data[loop].value);
-            // if (copy_to_user(data.value, all_data[loop].value, amountToCopy)) {
-            //   return -EFAULT;
-            // }
-            //break;
-        }
-    }
-    return 0;
-}
-
 static int read_file(struct ioctl_data *data, char *key) {
     if (filp) {
         printk(KERN_INFO, "success\n");
@@ -236,7 +218,7 @@ static int read_file(struct ioctl_data *data, char *key) {
             } 
             ret = kernel_read(filp, curr_value, value_len, &readPos);
             data->value_len = value_len;
-            if (copy_to_user(data->value, curr_value, value_len)) {
+            if (copy_to_user(data->value_uptr, curr_value, value_len)) {
                 return -EFAULT;
             }
             return 0;
@@ -247,149 +229,197 @@ static int read_file(struct ioctl_data *data, char *key) {
     return -EBADF;
 }
 
-static int ls3_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+static int ls3_ioctl_putobject(struct ioctl_data *params, char *key)
 {
-    struct ioctl_data data;
-    printk(KERN_INFO "ioctl.\n");
-    int ret;
-    printk(KERN_INFO "%u\n", cmd);
-    switch(cmd) {
-        case LS3_IOCTL_CMD_PUTOBJECT:
-            printk(KERN_INFO "recieved.\n");
-            if (copy_from_user(&data, (void __user*)arg, 32)) {
-                return -EFAULT;
-            }
-            char* key;
-            printk(KERN_INFO "%d\n", data.key_len);
-            printk(KERN_INFO "%d\n", data.value_len);
-            if(data.key_len > 1000) {
-                return -1;
-            }
-            key = kmalloc(data.key_len+1, GFP_USER);
-            char* value = kmalloc(data.value_len, GFP_USER);
-            if (copy_from_user(key, data.key, data.key_len)) {
-                return -1;
-            }
-            if (copy_from_user(value, data.value, data.value_len)) {
-                return -1;
-            }
-            key[data.key_len] = 0;
-            value[data.value_len] = 0;
-            printk(KERN_INFO "%s %s %d %d\n", key, value, data.key_len, data.value_len);
+    // copy params->val from userspace
+    // NOTE: zero-length values are allowed.
+    void* value = kmalloc(params->value_len, GFP_USER);
+    if (copy_from_user(value, params->value_uptr, params->value_len)) {
+        pr_err("Failed to copy val from userspace\n");
+        kfree(value);
+        return -EFAULT;
+    }
 
-            int place = write_array(key, value, data.key_len, data.value_len);
-            if (place < 0) {
-                return -EFAULT;
-            }
-            // flip around logic
-            write_pos = end_pos;
-            leftover = 0;
-            if (place == tracker) {
-                tracker = tracker + 1;
-            } else {
-                if (filp) {
-                    ret = look_for_blanks(place, &data);
-                    if (!ret) {
-                        return -EFAULT;
-                    }
-                }
-            }
-            write_file(place);
-            // use filp
-            //char data[data.key_len+data.value_len+1] = key + " " + value;
+    // FIXME: code cleanup needed here, and remove array
+    // FIXME: add duplicate checking?
+    int place = write_array(key, value, params->key_len, params->value_len);
+    if (place < 0) {
+        pr_err("Failed to write array\n");
+        kfree(value);
+        return -EFAULT;
+    }
+    write_pos = end_pos;
+    leftover = 0;
+    if (place == tracker) {
+        tracker = tracker + 1;
+    } else if (filp) {
+        int ret = look_for_blanks(place, params);
+        if (!ret) {
+            pr_err("No blanks found\n");
+            kfree(value);
+            return -EFAULT;
+        }
+    }
 
-            break;
-        case LS3_IOCTL_CMD_GETOBJECT:
-            if (copy_from_user(&data, (void __user*)arg, 32)) {
-                return -EFAULT;
-            }
-            printk(KERN_INFO "%d\n", data.key_len);
-            if(data.key_len > 1000) {
-                return 0;
-            }
-            key = kmalloc(data.key_len+1, GFP_USER);
-            if (copy_from_user(key, data.key, data.key_len)) {
-                return -EFAULT;
-            }
-            key[data.key_len] = 0;
-            printk(KERN_INFO "%s %d\n", key, tracker);
-            // we only need to get the key here now go look for the value
-            //read_array(&data, key);
-            ret = read_file(&data, key);
-            if (ret < 0) {
-                return ret;
-            }
-            // void *data_addr = data;
-            if (copy_to_user((void __user*)arg, &data, 32)) {
-                return -EFAULT;
-            }
-            break;
-        case LS3_IOCTL_CMD_DELOBJECT:
-            if (copy_from_user(&data, (void __user*)arg, 32)) {
-                return -EFAULT;
-            }
-            printk(KERN_INFO "%d\n", data.key_len);
-            if(data.key_len > 1000) {
-                return 0;
-            }
-            key = kmalloc(data.key_len+1, GFP_USER);
-            if (copy_from_user(key, data.key, data.key_len)) {
-                return -EFAULT;
-            }
-            key[data.key_len] = 0;
-            printk(KERN_INFO "%s %d\n", key, tracker);
-            int loop = 0;
-            // we only need to get the key here now go look for the value
-            for(loop = 0; loop < tracker; loop++) {
-                printk(KERN_INFO "key %d of %d key %s\n", loop, tracker, all_data[loop].key);
-                if (all_data[loop].key == NULL) {
-                    continue;
-                }
-                if(strcmp(all_data[loop].key, key) == 0) {
-                    printk(KERN_INFO "found key... deleting\n");
-                    all_data[loop].value = NULL;
-                    all_data[loop].key = NULL;
-                    break;
-                }
-            }
+    write_file(place);
+    //char ioctl_params[ioctl_params.key_len+ioctl_params.value_len+1] = key + " " + value;
 
-            ssize_t ret;
-            uint64_t key_len;
-            uint64_t value_len;
-            loff_t readPos = 0;
-            while(readPos < end_pos) {
-                printk(KERN_INFO "%d\n", (int)readPos);
-                ret = kernel_read(filp, &key_len, 8, &readPos);
-                ret = kernel_read(filp, &value_len, 8, &readPos);
-                char *curr_key = kmalloc(key_len+1, GFP_USER);
-                void *curr_value = kmalloc(value_len, GFP_USER);
-                printk(KERN_INFO "lengths %llu %llu\n", key_len, value_len);
-                ret = kernel_read(filp, curr_key, key_len, &readPos);
-                curr_key[key_len] = 0;
-                if ((strcmp(curr_key, key) != 0)) {
-                    readPos = readPos + value_len;
-                    continue;
-                } 
-                int size = key_len + value_len;
-                char* appendFile = kmalloc(size, GFP_USER);
-                memset(appendFile, 0, size);  
-                //appendFile[0] = 0;
-                //qappendFile[size-1] = 0;
-                void* key_mem_addr = NULL;
-                key_mem_addr = appendFile;
-                readPos -= key_len;
-                kernel_write(filp, key_mem_addr, size, &readPos);
-                return 0;
-            }
-            // implement get
-            // add duplicate checking
+    kfree(value);
+    return 0;
+}
 
-            // need to free data here!!!!
-            // use access_ok
-
-            // use cmd to dilineate btwn put/get using cmd #
+static int ls3_ioctl_getobject(struct ioctl_data *params, char *key, void __user* param_uptr)
+{
+    // FIXME: cleanup here
+    //read_array(params, key);
+    int err = read_file(params, key);
+    if (err != 0) {
+        return err;
+    }
+    // FIXME: do we only really need to copy the param->data_length field?
+    if (copy_to_user(param_uptr, params, sizeof(struct ioctl_data))) {
+        pr_err("Failed to copy ioctl result data to userspace\n");
+        return -EFAULT;
     }
     return 0;
+}
+
+static int ls3_ioctl_delobject(struct ioctl_data *params, char *key)
+{
+    // FIXME: cleanup here
+    int loop = 0;
+    // we only need to get the key here now go look for the value
+    for(loop = 0; loop < tracker; loop++) {
+        printk(KERN_INFO "key %d of %d key %s\n", loop, tracker, all_data[loop].key);
+        if (all_data[loop].key == NULL) {
+            continue;
+        }
+        if(strcmp(all_data[loop].key, key) == 0) {
+            printk(KERN_INFO "found key... deleting\n");
+            all_data[loop].value = NULL;
+            all_data[loop].key = NULL;
+            break;
+        }
+    }
+
+    ssize_t ret;
+    uint64_t key_len;
+    uint64_t value_len;
+    loff_t readPos = 0;
+    while(readPos < end_pos) {
+        printk(KERN_INFO "%d\n", (int)readPos);
+        ret = kernel_read(filp, &key_len, 8, &readPos);
+        ret = kernel_read(filp, &value_len, 8, &readPos);
+        char *curr_key = kmalloc(key_len+1, GFP_USER);
+        void *curr_value = kmalloc(value_len, GFP_USER);
+        printk(KERN_INFO "lengths %llu %llu\n", key_len, value_len);
+        ret = kernel_read(filp, curr_key, key_len, &readPos);
+        curr_key[key_len] = 0;
+        if ((strcmp(curr_key, key) != 0)) {
+            readPos = readPos + value_len;
+            continue;
+        } 
+        int size = key_len + value_len;
+        char* appendFile = kmalloc(size, GFP_USER);
+        memset(appendFile, 0, size);  
+        //appendFile[0] = 0;
+        //qappendFile[size-1] = 0;
+        void* key_mem_addr = NULL;
+        key_mem_addr = appendFile;
+        readPos -= key_len;
+        kernel_write(filp, key_mem_addr, size, &readPos);
+        return 0;
+    }
+    return 0; // ??? FIXME this case was missing before
+}
+
+#ifdef ENFORCE_ASCII_KEY_NAMES
+static int validate_key_name(char *key) {
+    char *p = key;
+    if (!p) {
+        return 1;
+    }
+    while (*p) {
+        if (*p < 0x20 || *p > 0x7E)
+            return 1;
+    }
+    return 0;
+}
+#endif // ENFORCE_ASCII_KEY_NAMES
+
+static int ls3_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+    void __user* param_uptr = (void __user*)arg;
+    if (verbose > 0) pr_info("ioctl(..., cmd=0x%04x, arg=%p)n", cmd, param_uptr);
+    // Sanity check
+    if (cmd == 0 || arg == 0) {
+        pr_err("Invalid cmd or arg\n");
+        return -EINVAL;
+    }
+    // copy ioctl parameter data from userspace
+    struct ioctl_data ioctl_params;
+    if (copy_from_user(&ioctl_params, (void __user*)arg, sizeof(ioctl_params))) {
+        pr_err("Failed to copy ioctl parameter data from userspace\n");
+        return -EFAULT;
+    }
+    // copy ioctl_params->key from userspace
+    if (ioctl_params.key_len <= 0 || ioctl_params.key_len > LS3_MAX_KEYLEN) {
+        pr_err("Invalid key length (len=%llu)\n", ioctl_params.key_len);
+        return -EINVAL;
+    }
+    char *key = kmalloc(ioctl_params.key_len+1, GFP_USER);
+    if (key == NULL)
+        return -ENOMEM;
+    if (copy_from_user(key, ioctl_params.key_uptr, ioctl_params.key_len)) {
+        pr_err("Failed to copy key from userspace\n");
+        kfree(key);
+        return -EFAULT;
+    }
+    key[ioctl_params.key_len] = 0;
+
+#ifdef ENFORCE_ASCII_KEY_NAMES
+    if (validate_key_name(key)) {
+        pr_err("Invalid key, does not contain only printable ascii\n");
+        kfree(key);
+        return -EINVAL;
+    }
+    if (verbose > 0)
+        pr_info("key [len=%d]: %s", ioctl_params.key_len, key);
+#else
+    if (verbose > 0 && validate_key_name(key))
+        pr_info("key [len=%d] \"%s\"", ioctl_params.key_len, key);
+    else if (verbose > 0)
+        pr_info("key [len=%d] will not be printed\n", ioctl_params.key_len);
+#endif // ENFORCE_ASCII_KEY_NAMES
+
+    int err;
+    switch(cmd) {
+
+        case LS3_IOCTL_CMD_PUTOBJECT:
+            if (verbose > 0)
+                pr_info("PutObject with %d byte value\n", ioctl_params.value_len);
+            err = ls3_ioctl_putobject(&ioctl_params, key);
+            break;
+
+        case LS3_IOCTL_CMD_GETOBJECT:
+            if (verbose > 0)
+                pr_info("GetObject\n");
+            err = ls3_ioctl_getobject(&ioctl_params, key, param_uptr);
+            break;
+
+        case LS3_IOCTL_CMD_DELOBJECT:
+            if (verbose > 0)
+                pr_info("DeleteObject\n");
+            err = ls3_ioctl_delobject(&ioctl_params, key);
+            break;
+
+        default:
+            pr_err("Unrecognized ioctl (cmd=0x%04x)\n", cmd);
+            err = -EINVAL;
+    }
+
+    kfree(key);
+    return err;
 }
 
 static int ls3_open(struct inode *inode, struct file *file)
@@ -453,6 +483,7 @@ static int __init main(void) {
         filp = NULL;
         return err;
     }
+    registered = 1;
 
     // TODO: register as a filesystem
     // err = register_filesystem(&lfs_type);
@@ -469,8 +500,10 @@ static void __exit cleanup(void)
         filp = NULL;
     }
 
-    if (verbose > 0) pr_info("Unregistering module\n");
-    misc_deregister(&ls3_device);
+    if (registered) {
+        if (verbose > 0) pr_info("Unregistering module\n");
+        misc_deregister(&ls3_device);
+    }
 
     pr_info("Completed cleanup\n");
 }
