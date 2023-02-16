@@ -123,17 +123,30 @@ struct ioctl_data {
     void __user* value_uptr;
 };
 
-// TODO: consolodate all global state into a struct
-int tracker = 0;
-loff_t end_pos = 0;
-loff_t backing_size = 0;
-loff_t write_pos = 0;
-uint64_t leftover = 0;
-struct file *filp = NULL;
+// Most global state is stored in the mount_info data structure. This
+// version of the code only supports one mount point at a time, but a
+// filesystem-registered version should be able to support multiple mount
+// points, each using a different backing file, different sizes, different end
+// positions, etc.
+struct mount_info {
+    loff_t end_pos;
+    loff_t backing_size;
+    struct file *filp;
+};
+struct mount_info ls3;
+
+
+// Variable to track whether the init code successfully registered the module.
 int registered = 0;
 
+// Which (single) backing file to use. This should probably go in mount_info.
+// This can be set by an insmod parameter.
 static char* backing_file; // e.g. "/home/charliedoern/Documents/testing.txt"
-static int verbose = 0; // controls how much printing
+
+// Global variable to control how much printing.
+// This can be set by an insmod parameter.
+static int verbose = 0;
+
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Charles Doern");
@@ -167,8 +180,8 @@ static uint64_t rec_size(struct record_info *r) {
 // will return an invalid record.
 static void rec_get(loff_t pos, struct record_info *r) {
     r->start = pos;
-    if (pos + RECORD_MIN_SIZE <= end_pos) 
-        kernel_read(filp, &r->hdr, RECORD_HDR_SIZE, &pos);
+    if (pos + RECORD_MIN_SIZE <= ls3.end_pos) 
+        kernel_read(ls3.filp, &r->hdr, RECORD_HDR_SIZE, &pos);
     else
         r->hdr.key_len = r->hdr.value_len = 0;
     r->next = pos + r->hdr.key_len + r->hdr.value_len;
@@ -177,7 +190,7 @@ static void rec_get(loff_t pos, struct record_info *r) {
 static char* rec_read_key(struct record_info *r) {
     char *key = kmalloc(r->hdr.key_len+1, GFP_USER);
     loff_t pos = r->start + RECORD_HDR_SIZE;
-    kernel_read(filp, key, r->hdr.key_len, &pos);
+    kernel_read(ls3.filp, key, r->hdr.key_len, &pos);
     key[r->hdr.key_len] = '\0';
     return key;
 }
@@ -185,7 +198,7 @@ static char* rec_read_key(struct record_info *r) {
 static char* rec_read_value(struct record_info *r, loff_t offset, uint64_t len) {
     char *value = kmalloc(len, GFP_USER);
     loff_t pos = r->start + RECORD_HDR_SIZE + r->hdr.key_len + offset;
-    kernel_read(filp, value, len, &pos);
+    kernel_read(ls3.filp, value, len, &pos);
     return value;
 }
 
@@ -195,18 +208,18 @@ static char* rec_read_value(struct record_info *r, loff_t offset, uint64_t len) 
 // ensure the last valid record doesn't overflow the backing file.
 static loff_t scan_for_end(void) {
     struct record_info r;
-    end_pos = backing_size; // needed for iteration functions
+    ls3.end_pos = ls3.backing_size; // needed for iteration functions
     for (rec_get(0, &r); rec_valid(&r); rec_get(r.next, &r)) {
         if (verbose > 0)
             pr_info("Found valid record at offset %lld\n", r.start);
         // sanity checks before moving to next record
-        if (r.next > backing_size) {
+        if (r.next > ls3.backing_size) {
             pr_err("Last valid record overflows backing file by %lld bytes\n",
-                    r.next - backing_size);
+                    r.next - ls3.backing_size);
             pr_warn("Ignoring overflowing record\n");
             return r.start;
         }
-        if (r.next + RECORD_MIN_SIZE >= backing_size) {
+        if (r.next + RECORD_MIN_SIZE >= ls3.backing_size) {
             // we can't go any further without overflowing backing file
             if (verbose > 0)
                 pr_info("No invalid records found, end is at offset %lld\n", r.next);
@@ -238,13 +251,13 @@ static void rec_write(loff_t off,
     struct record_hdr hdr;
     hdr.key_len = key_len;
     hdr.value_len = value_len;
-    kernel_write(filp, &hdr, RECORD_HDR_SIZE, &off);
-    kernel_write(filp, key, key_len, &off);
-    kernel_write(filp, value, value_len, &off);
+    kernel_write(ls3.filp, &hdr, RECORD_HDR_SIZE, &off);
+    kernel_write(ls3.filp, key, key_len, &off);
+    kernel_write(ls3.filp, value, value_len, &off);
     if (extra >= RECORD_MIN_SIZE) {
         hdr.key_len = 0;
         hdr.value_len = extra - RECORD_HDR_SIZE;
-        kernel_write(filp, &hdr, RECORD_HDR_SIZE, &off);
+        kernel_write(ls3.filp, &hdr, RECORD_HDR_SIZE, &off);
     }
 }
 
@@ -328,7 +341,7 @@ static int ls3_ioctl_delobject(struct ioctl_data *params, char *key)
         // [empty]  [to-delete]  [invalid]
         // eliminate all three, and adjust end_pos
         prev.hdr.key_len = prev.hdr.value_len = 0;
-        end_pos = prev.start;
+        ls3.end_pos = prev.start;
         dirty = &prev;
     } else if (rec_empty(&next)) {
         // prev    curr         next
@@ -343,7 +356,7 @@ static int ls3_ioctl_delobject(struct ioctl_data *params, char *key)
         // [full]  [to-delete]  [invalid]
         // eliminate two, and adjust end_pos
         curr.hdr.key_len = curr.hdr.value_len = 0;
-        end_pos = curr.start;
+        ls3.end_pos = curr.start;
         dirty = &curr;
     } else {
         // prev    curr         next
@@ -356,7 +369,7 @@ static int ls3_ioctl_delobject(struct ioctl_data *params, char *key)
 
     // overwrite the dirty record
     loff_t pos = dirty->start;
-    kernel_write(filp, &dirty->hdr, RECORD_HDR_SIZE, &pos);
+    kernel_write(ls3.filp, &dirty->hdr, RECORD_HDR_SIZE, &pos);
     return 0;
 }
 
@@ -399,19 +412,19 @@ static int ls3_ioctl_putobject(struct ioctl_data *params, char *key)
         uint64_t extra = hole_size - amt;
         // Note: rec_write will also make a new hole after the record, if needed.
         rec_write(curr.start, params->key_len, params->value_len, key, value, extra);
-    } else if (curr.start + amt <= backing_size) {
+    } else if (curr.start + amt <= ls3.backing_size) {
         // no hole found, but new record fits near end of file
         // assert(curr.start == end_pos)
         rec_write(curr.start, params->key_len, params->value_len, key, value, 0);
-        end_pos = curr.start + amt;
-        uint64_t extra = backing_size - end_pos;
+        ls3.end_pos = curr.start + amt;
+        uint64_t extra = ls3.backing_size - ls3.end_pos;
         if (extra > 0) {
             // write a complete or partial invalid header, which is just all zeros
             struct record_hdr hdr = { 0 };
-            loff_t pos = end_pos;
+            loff_t pos = ls3.end_pos;
             if (extra > RECORD_HDR_SIZE)
                 extra = RECORD_HDR_SIZE;
-            kernel_write(filp, &hdr, extra, &pos);
+            kernel_write(ls3.filp, &hdr, extra, &pos);
         }
     } else {
         pr_err("No space left in backing store, or too much fragmentation.");
@@ -552,6 +565,7 @@ static struct miscdevice ls3_device = {
 
 int __init main(void) {
     pr_info("Initializing LS3 filesystem\n");
+    memset(&ls3, 0, sizeof(struct mount_info));
     if (backing_file == NULL) {
         pr_err("Failed to initialize: backing_file is NULL\n");
         return -EINVAL;
@@ -562,21 +576,21 @@ int __init main(void) {
     }
     pr_info("Using backing_file '%s'\n", backing_file);
     // todo: use chmod to make file world readable?
-    filp = filp_open(backing_file, O_RDWR, 0644);
-    if (IS_ERR_OR_NULL(filp)) {
+    ls3.filp = filp_open(backing_file, O_RDWR, 0644);
+    if (IS_ERR_OR_NULL(ls3.filp)) {
         pr_err("Failed to initialize: can't open '%s'\n", backing_file);
-        filp = NULL;
+        ls3.filp = NULL;
         return -EINVAL;
     }
     if (verbose > 0) pr_info("Opened backing file\n");
 
-    loff_t size = i_size_read(file_inode(filp));
+    loff_t size = i_size_read(file_inode(ls3.filp));
     if (size < MIN_BACKING_FILE_SIZE) {
         pr_err("Backing file has size %lld, but must be %lld at minimum\n",
                 size, MIN_BACKING_FILE_SIZE);
         if (verbose > 0) pr_info("Closing backing file\n");
-        filp_close(filp, NULL);
-        filp = NULL;
+        filp_close(ls3.filp, NULL);
+        ls3.filp = NULL;
         return -EIO;
     }
     if (verbose > 0)
@@ -585,18 +599,18 @@ int __init main(void) {
                 size > 1*GiB ? size/GiB : size/MiB,
                 size > 1*GiB ? (size%GiB)/(GiB/1000) : (size%MiB)/(MiB/1000),
                 size > 1*GiB ? "GiB" : "MiB");
-    backing_size = size;
+    ls3.backing_size = size;
 
     if (verbose > 0) pr_info("Scanning for end position\n");
-    end_pos = scan_for_end();
+    ls3.end_pos = scan_for_end();
 
     if (verbose > 0) pr_info("Registering module\n");
     int err = misc_register(&ls3_device);
     if (err != 0) {
         pr_err("Failed to register: err=%d\n", err);
         if (verbose > 0) pr_info("Closing backing file\n");
-        filp_close(filp, NULL);
-        filp = NULL;
+        filp_close(ls3.filp, NULL);
+        ls3.filp = NULL;
         return err;
     }
     registered = 1;
@@ -610,10 +624,10 @@ int __init main(void) {
 static void __exit cleanup(void)
 {
     pr_info("Cleaning up LS3 filesystem\n");
-    if (!IS_ERR_OR_NULL(filp)) {
+    if (!IS_ERR_OR_NULL(ls3.filp)) {
         if (verbose > 0) pr_info("Closing backing file\n");
-        filp_close(filp, NULL);
-        filp = NULL;
+        filp_close(ls3.filp, NULL);
+        ls3.filp = NULL;
     }
 
     if (registered) {
