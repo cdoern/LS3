@@ -30,9 +30,11 @@
 #define LS3_IOCTL_CMD_GETOBJECT (0x0001) // IOCTL_CMD_READ?
 #define LS3_IOCTL_CMD_PUTOBJECT (0x0707) // IOCTL_CMD_RDWR?
 #define LS3_IOCTL_CMD_DELOBJECT (0x8000) // IOCTL_CMD_DELETE?
+
 // Keys must be between 1 and 127 bytes.
 // Empty keys (len=0) are not allowed.
 #define LS3_MAX_KEYLEN (127)
+
 // Values can be any non-negative length.
 // NOTE: zero-length values are allowed!
 
@@ -262,8 +264,10 @@ static void rec_write(loff_t off,
 }
 
 static int find_key(char *key, uint64_t key_len, struct record_info *prev, struct record_info *curr) {
-    prev->hdr.key_len = prev->hdr.value_len = 0;
+    if (prev)
+        prev->hdr.key_len = prev->hdr.value_len = 0;
     for (rec_get(0, curr); rec_valid(curr); rec_get(curr->next, curr)) {
+        pr_info("at record %lld\n", curr->start);
         if (rec_empty(curr) ||curr->hdr.key_len != key_len)
             continue;
 
