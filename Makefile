@@ -35,6 +35,18 @@ bin/ls3: .gopathok $(SOURCES) go.mod go.sum
 		-tags "" \
 		-o $@ ./cmd/
 
+bin/mkfs.ls3: .gopathok $(SOURCES) go.mod go.sum
+	$(GOCMD) build \
+		$(BUILDFLAGS) \
+		$(GO_LDFLAGS) '' \
+		-tags "" \
+		-o $@ ./cmdMkfs/
+
+
+
+.PHONY: mkfs.ls3
+mkfs.ls3: bin/mkfs.ls3
+
 .PHONY: ls3
 ls3: bin/ls3
 
@@ -43,13 +55,6 @@ vendor:
 	go mod tidy
 	go mod vendor
 
-
-obj-m += ls3.o
-CONFIG_MODULE_SIG=n
-
-.PHONY: c
-c: 
-	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
 
 .PHONY: clean
 clean: 

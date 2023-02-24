@@ -25,3 +25,7 @@ func (s *StorageEngine) ListObjects() error {
 func (s *StorageEngine) PutObject(key string, value []byte) error {
 	return ls3.PutObject(key, value)
 }
+
+func (s *StorageEngine) Format(device string) error {
+	return nil
+}

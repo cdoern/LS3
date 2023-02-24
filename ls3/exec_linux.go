@@ -11,10 +11,12 @@ import (
 )
 
 type ioctl_data struct {
+	cmd       uint64
 	key_len   uint64
 	value_len uint64
 	key       unsafe.Pointer
 	value     unsafe.Pointer
+	mountno   uint64
 }
 
 /*
@@ -35,10 +37,12 @@ func PutObject(key string, value []byte) error {
 	//pass len in a struct: ptr to arr of bytes (end in 0), ptr to arr of bytes, len of val
 	//concat := [2]string{key, value}
 	send := ioctl_data{
+		cmd:       1,
 		key_len:   uint64(len(key)),
 		key:       unsafe.Pointer(&keyArr[0]),
 		value_len: uint64(len(value)),
 		value:     unsafe.Pointer(&valueArr[0]),
+		mountno:   0,
 	}
 	fmt.Println(unsafe.Sizeof(send))
 	// go open/create a device and then kernel module can inercept this opening of a /dev
@@ -70,10 +74,12 @@ func GetObject(key string) ([]byte, error) {
 	//pass len in a struct: ptr to arr of bytes (end in 0), ptr to arr of bytes, len of val
 	//concat := [2]string{key, value}
 	send := ioctl_data{
+		cmd:       2,
 		key_len:   uint64(len(key)),
 		key:       unsafe.Pointer(&keyArr[0]),
 		value_len: uint64(1000),
 		value:     unsafe.Pointer(&valueArr[0]),
+		mountno:   0,
 	}
 	// go open/create a device and then kernel module can inercept this opening of a /dev
 	// open/rm of dev should maybe be done by kernel module
@@ -85,7 +91,7 @@ func GetObject(key string) ([]byte, error) {
 	_, _, errno := syscall.Syscall(
 		syscall.SYS_IOCTL,
 		uintptr(f.Fd()),
-		uintptr(0x0001), // READ
+		uintptr(0x0707), // READ
 		uintptr(unsafe.Pointer(&send)),
 	)
 	if errno != 0 {
@@ -106,7 +112,7 @@ func GetObject(key string) ([]byte, error) {
 		_, _, errno := syscall.Syscall(
 			syscall.SYS_IOCTL,
 			uintptr(f.Fd()),
-			uintptr(0x0001), // READ
+			uintptr(0x0707), // READ
 			uintptr(unsafe.Pointer(&send)),
 		)
 		if errno != 0 {
@@ -121,7 +127,7 @@ func GetObject(key string) ([]byte, error) {
 		_, _, errno := syscall.Syscall(
 			syscall.SYS_IOCTL,
 			uintptr(f.Fd()),
-			uintptr(0x0001), // READ
+			uintptr(0x0707), // READ
 			uintptr(unsafe.Pointer(&send)),
 		)
 		if errno != 0 {
@@ -153,10 +159,45 @@ func DeleteObject(key string) error {
 	//pass len in a struct: ptr to arr of bytes (end in 0), ptr to arr of bytes, len of val
 	//concat := [2]string{key, value}
 	send := ioctl_data{
+		cmd:       3,
 		key_len:   uint64(len(key)),
 		key:       unsafe.Pointer(&keyArr[0]),
 		value_len: uint64(1000),
 		value:     unsafe.Pointer(&valueArr[0]),
+	}
+	// go open/create a device and then kernel module can inercept this opening of a /dev
+	// open/rm of dev should maybe be done by kernel module
+	f, err := os.OpenFile("/dev/ls3", os.O_RDWR, os.ModeCharDevice)
+	if err != nil {
+		return err
+	}
+
+	_, _, errno := syscall.Syscall(
+		syscall.SYS_IOCTL,
+		uintptr(f.Fd()),
+		uintptr(0x8000), // DELETE
+		uintptr(unsafe.Pointer(&send)),
+	)
+	if errno != 0 {
+		err = errno
+	}
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+type ioctl_data_format struct {
+	device unsafe.Pointer
+	length int
+}
+
+func Format(device string) error {
+	var err error
+	deviceArr := []byte(device)
+	send := ioctl_data_format{
+		device: unsafe.Pointer(&deviceArr[0]),
+		length: len(deviceArr),
 	}
 	// go open/create a device and then kernel module can inercept this opening of a /dev
 	// open/rm of dev should maybe be done by kernel module
