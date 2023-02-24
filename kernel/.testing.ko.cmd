@@ -1,0 +1,1 @@
+cmd_/home/charliedoern/Documents/LS3/kernel/testing.ko := ld -r  -m elf_x86_64 -z noexecstack   --build-id=sha1  -T scripts/module.lds -o /home/charliedoern/Documents/LS3/kernel/testing.ko /home/charliedoern/Documents/LS3/kernel/testing.o /home/charliedoern/Documents/LS3/kernel/testing.mod.o;  true
