@@ -1,4 +1,4 @@
-obj-m += ls3.o
+obj-m += ls3_fs.o
 CONFIG_MODULE_SIG=n
 
 .PHONY: modules
