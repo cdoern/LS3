@@ -1,1 +1,0 @@
-cmd_/home/charliedoern/Documents/LS3/kernel/modules.order := {   echo /home/charliedoern/Documents/LS3/kernel/testing.ko; :; } | awk '!x[$$0]++' - > /home/charliedoern/Documents/LS3/kernel/modules.order

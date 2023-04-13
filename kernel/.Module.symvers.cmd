@@ -1,1 +1,0 @@
-cmd_/home/charliedoern/Documents/LS3/kernel/Module.symvers := sed 's/\.ko$$/\.o/' /home/charliedoern/Documents/LS3/kernel/modules.order | scripts/mod/modpost -m -a  -o /home/charliedoern/Documents/LS3/kernel/Module.symvers -e -i Module.symvers   -T -
