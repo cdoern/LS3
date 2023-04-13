@@ -33,7 +33,7 @@ MODULE_DESCRIPTION("LS3 Block Storage");
 struct dentry *ls3_mount(struct file_system_type *ls3_type, int flags, const char *dev_name, void *data);
 static int ls3_fill_super (struct super_block *sb, void *data, int silent);
 void kill_ls3_super(struct super_block *sb);
-static void get_block(uint64_t block, void* anything, uint64_t mountno);
+static void get_block(uint64_t block, void* anything, int mountno);
 static const struct file_operations my_fops;
 
 
@@ -48,7 +48,7 @@ uint64_t key_len;
 uint64_t value_len;
 void __user* key;
 void __user* value;
-uint64_t mountno;
+int mountno;
 };
 
 /*
@@ -137,14 +137,15 @@ static struct super_operations ls3_s_ops = {
 
 void kill_ls3_super(struct super_block *sb)
 {
-    int mount;
-    mount = (int)sb->s_fs_info;
-    printk(KERN_INFO "closing filp %p", mounts[mount]->filp);
-    filp_close(mounts[mount]->filp, NULL);
-    mounts[mount] = NULL;
-    kill_block_super(sb);
+    // Get the mountno from the private info we stashed in the superblock.
+    int mountno = *(int *)sb->s_fs_info;
 
+    printk(KERN_INFO "closing filp %p", mounts[mountno]->filp);
+    filp_close(mounts[mountno]->filp, NULL);
+    mounts[mountno] = NULL;
+    kill_block_super(sb);
 }
+
 struct dentry *ls3_mount(struct file_system_type *ls3_type, int flags, const char *dev_name, void *data) {
     if (dev_name[0] != '\0') {
 
@@ -275,7 +276,7 @@ static int ls3_fill_super (struct super_block *sb, void *data, int silent)
 {
     printk(KERN_INFO "filling super");
 
-    uint64_t mountno = -1;
+    int mountno = -1;
     int i;
     for(i = 0; i < num_mounts; i++) {
         if (mounts[i] == NULL) {
@@ -343,7 +344,11 @@ static int ls3_fill_super (struct super_block *sb, void *data, int silent)
 	sb->s_blocksize_bits = PAGE_CACHE_SHIFT;
 	sb->s_magic = LS3_MAGIC;
 	sb->s_op = &ls3_s_ops;
-    sb->s_fs_info = (void*)mountno;
+    // superblock private info is just an integer, which we use
+    // to index into a static array of mount_data structures.
+    sb->s_fs_info = kzalloc(sizeof(int), GFP_USER);
+    *(int *)sb->s_fs_info = mountno;
+
     //sb->s_maxbytes  = MAX_LFS_FILESIZE;
 
 	root = ls3_make_inode(sb, S_IFDIR | 0755);
@@ -388,13 +393,13 @@ static struct miscdevice my_device = {
     .mode = S_IRWXUGO
 };
 
-static int put_block(uint64_t block, void* anything, uint64_t mountno) {
+static int put_block(uint64_t block, void* anything, int mountno) {
     loff_t position = (block * PAGE_CACHE_SIZE);
     kernel_write(mounts[mountno]->filp, anything, PAGE_CACHE_SIZE, &position);
     return position;
 }
 
-static void get_block(uint64_t block, void* anything, uint64_t mountno) {
+static void get_block(uint64_t block, void* anything, int mountno) {
     loff_t position = (block * PAGE_CACHE_SIZE);
     kernel_read(mounts[mountno]->filp, anything, PAGE_CACHE_SIZE, &position);
 }
@@ -425,7 +430,7 @@ static int find_key(struct key_block *curr_keys, int *blockno, int *blocksize, c
 
 // NEED PARAM, ARE WE RESERVING SUPER OR DATA OR FREE? data is 35 onward+
 
-static uint64_t reserve_block(uint64_t len, uint64_t mountno) {
+static uint64_t reserve_block(uint64_t len, int mountno) {
     // BUG_ON(len != 1);
     // search the free bitmap, find a 1, change 1 to 0 and return corresponding number that goes with the block.
    // loff_t size_in_bytes = i_size_read(file_inode(mounts[mountno]->filp));
@@ -463,7 +468,7 @@ static uint64_t reserve_block(uint64_t len, uint64_t mountno) {
     return block;
 }
 
-static int unreserve_block(uint64_t blockno, uint64_t mountno) {
+static int unreserve_block(uint64_t blockno, int mountno) {
     // modify bitmap to put 1 in the place of this block
     bitmap_clear(mounts[mountno]->bitmap, blockno, 1);
     return 0;
@@ -473,7 +478,7 @@ static void* make_block(void) {
     return kzalloc(PAGE_CACHE_SIZE, GFP_USER);
 }
 
-static void write_fs(char *key, char *data, uint64_t key_len, uint64_t data_len, uint64_t mountno) {
+static void write_fs(char *key, char *data, uint64_t key_len, uint64_t data_len, int mountno) {
     if (mountno < num_mounts && mounts[mountno] != NULL) {
                 struct key_block *curr_keys = make_block();
                 get_block(mounts[mountno]->super->master, curr_keys, mountno);
@@ -520,7 +525,7 @@ static void write_fs(char *key, char *data, uint64_t key_len, uint64_t data_len,
     }
 }
 
-static int read_fs(struct ioctl_data *data, char *key, uint64_t mountno) {
+static int read_fs(struct ioctl_data *data, char *key, int mountno) {
     if (mounts[mountno]->filp) {
                 struct key_block *curr_keys = make_block();
                 int i = 0;
