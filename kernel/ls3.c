@@ -105,7 +105,7 @@ static int garbage_collection(void) {
 
 //uint64_t super_block_head = read_super_block_master(); // this will query s_fs_info and get the last key block
 
-uint64_t prev = NULL;
+uint64_t prev = 0;
 
 do {
 	int i;
@@ -115,7 +115,7 @@ do {
     }
     prev =  0;// where we are, jump to this block
 
-} while (prev != NULL);
+} while (prev != 0);
 return 0;
 }
 
