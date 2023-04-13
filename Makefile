@@ -59,6 +59,7 @@ vendor:
 .PHONY: clean
 clean: 
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) clean
+	go mod init LS3
 	go mod tidy
 	go mod vendor
 
