@@ -1,6 +1,7 @@
 GO ?= go
 SOURCES = $(shell find . -path './.*' -prune -o \( \( -name '*.go' -o -name '*.c' \) -a ! -name '*_test.go' \) -print)
 PROJECT := github.com/cdoern/LS3
+BACKING_FILE := /home/charliedoern/Documents/testing.txt
 
 ifeq ($(GOPATH),)
 export GOPATH := $(HOME)/go
@@ -40,6 +41,7 @@ ls3: bin/ls3
 
 .PHONY: vendor
 vendor:
+	# go mod init
 	go mod tidy
 	go mod vendor
 
@@ -49,14 +51,21 @@ CONFIG_MODULE_SIG=n
 
 .PHONY: c
 c: 
-	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
+	make -C /lib/modules/$(shell uname -r)/build M=$(PWD)/kernel modules
 
 .PHONY: clean
 clean: 
-	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) clean
-	go mod tidy
-	go mod vendor
+	make -C /lib/modules/$(shell uname -r)/build M=$(PWD)/kernel clean
 
 .PHONY: zero
 zero:
-	dd if=/dev/zero of=/home/charliedoern/Documents/testing.txt bs=1000 count=1000000
+	dd if=/dev/zero of=$(BACKING_FILE) bs=1000 count=1000000
+
+.PHONY: insmod
+insmod:
+	sync # to ensure files are stored before crashing
+	sudo insmod kernel/ls3.ko backing_file=$(BACKING_FILE) verbose=1
+
+.PHONY: rmmod
+rmmod:
+	sudo rmmod ls3
