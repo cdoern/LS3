@@ -4,6 +4,8 @@
 *.dll
 *.so
 *.dylib
+bin/ls3
+bin/mkfs.ls3
 
 # Binaries for kernel module
 .*.ko.cmd
