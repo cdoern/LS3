@@ -28,3 +28,6 @@ modules.order
 
 # Dependency directories (remove the comment below to include it)
 # vendor/
+
+# Test filesystem image files
+*.img
