@@ -1,7 +1,9 @@
 GO ?= go
 SOURCES = $(shell find . -path './.*' -prune -o \( \( -name '*.go' -o -name '*.c' \) -a ! -name '*_test.go' \) -print)
 PROJECT := github.com/cdoern/LS3
-BACKING_FILE := $(PWD) /testing.img
+BACKING_FILE := $(PWD)/testing.img
+SIZE_IN_MB := 1
+MOUNTPOINT := $(PWD)/testmount
 
 ifeq ($(GOPATH),)
 export GOPATH := $(HOME)/go
@@ -73,7 +75,8 @@ clean:
 
 .PHONY: zero
 zero:
-	dd if=/dev/zero of=$(BACKING_FILE) bs=1000 count=1000000
+	rm -f $(BACKING_FILE)
+	dd if=/dev/zero of=$(BACKING_FILE) bs=1024 count=$(shell expr $(SIZE_IN_MB) \* 1024)
 
 .PHONY: insmod
 insmod:
@@ -83,3 +86,23 @@ insmod:
 .PHONY: rmmod
 rmmod:
 	sudo rmmod ls3_fs
+
+.PHONY: format
+format:
+	bin/mkfs.ls3 $(BACKING_FILE)
+
+.PHONY: mount
+mount:
+	mkdir -p $(MOUNTPOINT)
+	sudo mount -t ls3 -o loop $(BACKING_FILE) $(MOUNTPOINT)
+
+.PHONY: umount
+umount:
+	sudo umount $(MOUNTPOINT) || true
+
+
+.PHONY: starttest
+starttest: zero insmod format mount
+
+.PHONY: endtest
+starttest: umount rmmod
