@@ -175,6 +175,11 @@ static struct super_operations ls3_s_ops = {
 void kill_ls3_super(struct super_block *sb)
 {
     // Get the mountno from the private info we stashed in the superblock.
+    if (sb == NULL || sb->s_fs_info == NULL) {
+      printk(KERN_INFO "kill_super: ignoring null pointer for superblock that failed to mount\n");
+      return;
+    }
+
     int mountno = *(int *)sb->s_fs_info;
 
     printk(KERN_INFO "closing filp %p", mnt[mountno]->filp);
@@ -309,6 +314,7 @@ static int ls3_fill_super (struct super_block *sb, void *data, int silent)
     int mountno = -1;
     int i;
 
+    sb->s_fs_info = NULL; // initialize in case of error
     printk(KERN_INFO "filling super");
 
     for(i = 0; i < NUM_MOUNTS; i++) {
@@ -337,11 +343,13 @@ static int ls3_fill_super (struct super_block *sb, void *data, int silent)
         printk(KERN_INFO "BAD MAGIC NO");
         return -EBADF;
     }
-    if (super->fs_size != (uint64_t)i_size_read(file_inode(filp))) {
-        printk(KERN_INFO "ERROR: superblock fs_size (%lld) does not match device size (%lld)\n",
-                super->fs_size, i_size_read(file_inode(filp)));
-        return -EBADF;
-    }
+    // When mounting, i_read_size(/dev/loop0) returns 0, so we can't
+    // do this check...
+    // if (super->fs_size != (uint64_t)i_size_read(file_inode(filp))) {
+    //     printk(KERN_INFO "ERROR: superblock fs_size (%lld) does not match device size (%lld)\n",
+    //             super->fs_size, i_size_read(file_inode(filp)));
+    //     return -EBADF;
+    // }
    
     // Store in mount table
     struct mount_data *m = alloc_mount(super, filp);
