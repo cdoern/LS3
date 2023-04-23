@@ -1,5 +1,6 @@
 obj-m += ls3_fs.o
 CONFIG_MODULE_SIG=n
+ccflags-y += -Wno-declaration-after-statement -Wno-unused-function
 
 .PHONY: modules
 modules: 
