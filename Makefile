@@ -84,6 +84,21 @@ insmod:
 	sync # to ensure files are stored before crashing
 	sudo insmod kernel/ls3_fs.ko verbose=1
 
+.PHONY: insmod0
+insmod0:
+	sync # to ensure files are stored before crashing
+	sudo insmod kernel/ls3_fs.ko verbose=0
+
+.PHONY: insmod2
+insmod2:
+	sync # to ensure files are stored before crashing
+	sudo insmod kernel/ls3_fs.ko verbose=2
+
+.PHONY: insmod3
+insmod3:
+	sync # to ensure files are stored before crashing
+	sudo insmod kernel/ls3_fs.ko verbose=3
+
 .PHONY: rmmod
 rmmod:
 	sudo rmmod ls3_fs

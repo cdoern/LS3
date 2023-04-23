@@ -27,17 +27,25 @@
 #define PAGE_CACHE_SHIFT (13)
 #define NUM_RESERVED_SUPERBLOCKS (32)
 
+static int verbose = 0; // controls how much printing
+// 0 = only errors
+// 1 = roughly one print per operation (GET, PUT, DEL, etc.)
+// 2 = detailed printing for each step of an operation
+// 3+ = even more diagnostic info
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Charles Doern");
 MODULE_DESCRIPTION("LS3 Block Storage");
-struct dentry *ls3_mount(struct file_system_type *ls3_type, int flags, const char *dev_name, void *data);
+module_param(verbose, int, 0644);
+MODULE_PARM_DESC(verbose, "Amount of debug printing");
+
+
+static struct dentry *ls3_mount(struct file_system_type *ls3_type, int flags, const char *dev_name, void *data);
 static int ls3_fill_super (struct super_block *sb, void *data, int silent);
-void kill_ls3_super(struct super_block *sb);
+static void kill_ls3_super(struct super_block *sb);
 static void get_block(uint64_t block, void* anything, int mountno);
+static void dump_bitmap(unsigned long *bitmap, uint64_t num_bits);
 static const struct file_operations my_fops;
-
-
 
 struct ioctl_data {
 uint64_t cmd; 
@@ -129,8 +137,7 @@ static struct mount_data *alloc_mount(struct superblock *super, struct file *fil
     m->bitmap = kzalloc(round_up_to_pagesize(m->num_freemap_bytes), GFP_USER);
     bitmap_clear(m->bitmap, 0, m->num_blocks);
 
-    printk(KERN_INFO
-            "Created mount structure:\n"
+    pr_info("Created mount structure:\n"
             "             super->fs_size = %lld\n"
             "                 num_blocks = %lld\n"
             "          num_freemap_bytes = %lld\n"
@@ -175,23 +182,23 @@ static struct super_operations ls3_s_ops = {
 };
 
 
-void kill_ls3_super(struct super_block *sb)
+static void kill_ls3_super(struct super_block *sb)
 {
     // Get the mountno from the private info we stashed in the superblock.
     if (sb == NULL || sb->s_fs_info == NULL) {
-      printk(KERN_INFO "kill_super: ignoring null pointer for superblock that failed to mount\n");
+      pr_err("kill_super: ignoring null pointer for superblock that failed to mount\n");
       return;
     }
 
     int mountno = *(int *)sb->s_fs_info;
 
-    printk(KERN_INFO "closing filp %p", mnt[mountno]->filp);
+    pr_info("Unmounting device, closing filp %p", mnt[mountno]->filp);
     filp_close(mnt[mountno]->filp, NULL);
     mnt[mountno] = NULL;
     kill_block_super(sb);
 }
 
-struct dentry *ls3_mount(struct file_system_type *ls3_type, int flags, const char *dev_name, void *data) {
+static struct dentry *ls3_mount(struct file_system_type *ls3_type, int flags, const char *dev_name, void *data) {
     if (dev_name[0] != '\0') {
 
         //
@@ -317,9 +324,7 @@ static int ls3_fill_super (struct super_block *sb, void *data, int silent)
     int mountno = -1;
     int i;
 
-    sb->s_fs_info = NULL; // initialize in case of error
-    printk(KERN_INFO "filling super");
-
+    sb->s_fs_info = NULL;
     for(i = 0; i < NUM_MOUNTS; i++) {
         if (mnt[i] == NULL) {
             mountno = (uint64_t)i;
@@ -327,12 +332,12 @@ static int ls3_fill_super (struct super_block *sb, void *data, int silent)
         }
     }
     if (i == NUM_MOUNTS) {
-        printk(KERN_INFO "MOUNT TABLE FULL");
+        pr_err("MOUNT TABLE FULL");
         return -1;
     }
 
     // Open the device
-    printk(KERN_INFO "Mounting device %s", (char*)data);
+    pr_info("Mounting device %s", (char*)data);
     struct file *filp = filp_open((char*)data, O_RDWR, 0644);
 
     struct superblock *super = kzalloc(sizeof(struct superblock), GFP_USER);
@@ -343,13 +348,13 @@ static int ls3_fill_super (struct super_block *sb, void *data, int silent)
 
     // Sanity checks
     if (super->magic != LS3_MAGIC) {
-        printk(KERN_INFO "BAD MAGIC NO");
-        return -EBADF;
+        pr_err("BAD MAGIC NUMBER");
+        return -EIO;
     }
     // When mounting, i_read_size(/dev/loop0) returns 0, so we can't
     // do this check...
     // if (super->fs_size != (uint64_t)i_size_read(file_inode(filp))) {
-    //     printk(KERN_INFO "ERROR: superblock fs_size (%lld) does not match device size (%lld)\n",
+    //     pr_err("ERROR: superblock fs_size (%lld) does not match device size (%lld)\n",
     //             super->fs_size, i_size_read(file_inode(filp)));
     //     return -EBADF;
     // }
@@ -357,8 +362,7 @@ static int ls3_fill_super (struct super_block *sb, void *data, int silent)
     // Store in mount table
     struct mount_data *m = alloc_mount(super, filp);
     mnt[mountno] = m;
-    printk(KERN_INFO
-            "Recovered mount structure:\n"
+    pr_info("Recovered mount structure:\n"
             "             super->fs_size = %lld\n"
             "                 num_blocks = %lld\n"
             "          num_freemap_bytes = %lld\n"
@@ -366,12 +370,16 @@ static int ls3_fill_super (struct super_block *sb, void *data, int silent)
             "   num_total_freemap_blocks = %lld\n",
             super->fs_size, m->num_blocks, m->num_freemap_bytes, m->num_freemap_blocks, m->num_total_freemap_blocks);
     for(i = 0; i < m->num_freemap_blocks; i++) {
-      printk(KERN_INFO "           freemap_block[%d] = %lld", i, m->super->used_bitmaps[i]);
+      pr_info("           freemap_block[%d] = %lld", i, m->super->used_bitmaps[i]);
     }
 
     // Load bitmap from device
     for(i = 0; i < m->num_freemap_blocks; i++) {
         get_block(mnt[mountno]->super->used_bitmaps[i], ((void *)mnt[mountno]->bitmap)+(i*PAGE_CACHE_SIZE), mountno);
+    }
+
+    if (verbose >= 2) {
+        dump_bitmap(m->bitmap, m->num_blocks);
     }
 
 	struct inode *root;
@@ -400,7 +408,7 @@ static int ls3_fill_super (struct super_block *sb, void *data, int silent)
 	sb->s_root = root_dentry;
 
 	//ls3_create_files (sb, root_dentry);
-    printk(KERN_INFO "finished mounting %d", mountno);
+    pr_info("finished mounting %d", mountno);
 	return 0;
 	
   out_iput:
@@ -454,7 +462,8 @@ static int find_empty_key(struct key_block *curr_keys) {
 static int find_key(struct key_block *curr_keys, uint64_t *blockno, uint64_t *blocksize, char *key_str) {
     int i = 0;
     for(i = 0; i < ENTRIES_PER_KEYBLOCK; i++) {
-        printk(KERN_INFO "entry %d: key: %s\n", i, curr_keys->entry[i].key);
+        if (verbose >= 3)
+            pr_info("entry %d: key: %s\n", i, curr_keys->entry[i].key);
         if(!strcmp(curr_keys -> entry[i].key, key_str)) {
             *blockno = curr_keys->entry[i].data_blockno;
             *blocksize = curr_keys->entry[i].data_len;
@@ -465,16 +474,23 @@ static int find_key(struct key_block *curr_keys, uint64_t *blockno, uint64_t *bl
 }
 
 static void dump_bitmap(unsigned long *bitmap, uint64_t num_bits) {
-    uint64_t i;
-    for (i = 0; i < num_bits; i += 8) {
-        printk(KERN_INFO " %08lx", bitmap[i/8]);
-        if ((i+8) % 32 == 0)
-            printk(KERN_INFO " bits %llu to %llu\n", i-24, max(i+8, num_bits)-1);
+    uint64_t i, j = 0;
+    char buf[33];
+    buf[32] = '\0';
+    int pos = 0;
+    for (i = 0; i < num_bits; i++) {
+        buf[pos++] = test_bit(i, bitmap) ? '1' : '0';
+        if (pos == 32) {
+            pr_info("  %s status for blocks %llu to %llu\n", buf, j, i);
+            pos = 0;
+            j = i+1;
+        }
     }
-    // print last, partial line 
-    for ( ; i % 32 != 0; i += 8)
-        printk(KERN_INFO " %8s", "");
-    printk(KERN_INFO " bits %llu to %llu\n", i-32, max(i, num_bits)-1);
+    if (pos != 0) {
+        while (pos < 32)
+            buf[pos++] = ' ';
+        pr_info("  %s status for blocks %llu to %llu\n", buf, j, i-1);
+    }
 }
 
 // NEED PARAM, ARE WE RESERVING SUPER OR DATA OR FREE? data is 35 onward+
@@ -483,8 +499,10 @@ static uint64_t reserve_block(uint64_t len, int mountno) {
     // search the free bitmap, find a 1, change 1 to 0 and return corresponding number that goes with the block.
     // loff_t size_in_bytes = i_size_read(file_inode(mnt[mountno]->filp));
     loff_t num_blocks = mnt[mountno]->num_blocks;
-    printk(KERN_INFO "Reserving one of %lld blocks, freemap is:\n", num_blocks);
-    dump_bitmap(mnt[mountno]->bitmap, num_blocks);
+    if (verbose >= 3) {
+        pr_info("Reserving one of %lld blocks, freemap is:\n", num_blocks);
+        dump_bitmap(mnt[mountno]->bitmap, num_blocks);
+    }
     
     //uint64_t bit, prev = 0, count = 0;
    // uint64_t block = find_first_bit(mnt[mountno]->bitmap, num_blocks);
@@ -495,21 +513,22 @@ static uint64_t reserve_block(uint64_t len, int mountno) {
 
 
     /* for_each_set_bit (bit, mnt[mountno]->bitmap, 1) {
-        printk(KERN_INFO "%d bit %d prev", bit, prev);
+        pr_info("%d bit %d prev", bit, prev);
         if (bit != 1) // if prev is not the same as our bit
         // in our case, this should be if prev != 1
             count = 0; // reset count
         prev = bit; // prev = our current bit
         // leaving this for now, this lets us clear multiple bits at once but for now just one.
         if (count == len) { // if our count+1 is the len we are looking for, return that bit
-            printk(KERN_INFO "RETURNING BIT");
+            pr_info("RETURNING BIT");
             bitmap_clear(mnt[mountno]->bitmap, bit, len);
             return bit;
         }
         count++;
     } */
-    // printk(KERN_INFO "FAILED TO RESERVE BLOCK");
-    printk(KERN_INFO "Reserved block %llu\n", block);
+    // pr_info("FAILED TO RESERVE BLOCK");
+    if (verbose >= 1)
+        pr_info("Reserved block %llu\n", block);
     //bitmap_clear(mnt[mountno]->bitmap, block, len);
     return block;
 }
@@ -554,7 +573,7 @@ static void write_fs(char *key, char *data, uint64_t key_len, uint64_t data_len,
                 struct data_block *new_data_block;
                 new_data_block = make_block();
 
-                // fails here
+                // FIXME fails here
 
                 memcpy(new_data_block -> value, data, data_len);
 
@@ -565,9 +584,12 @@ static void write_fs(char *key, char *data, uint64_t key_len, uint64_t data_len,
                 put_block(curr_keys -> entry[i].data_blockno, new_data_block, mountno);
                 put_block(new_key_block, curr_keys, mountno); // maybe only do this when full. keep in mem until some quota
 
+                // FIXME
                 // this logic is wrong
                 // is this right?
                 mnt[mountno]->super->master = new_key_block;
+
+                // FIXME need to write bitmap (and superblock) to storage
     }
 }
 
@@ -577,15 +599,18 @@ static int read_fs(struct ioctl_data *data, char *key, int mountno) {
     struct key_block *curr_keys = make_block();
     int i;
     uint64_t master_block = mnt[mountno]->super->master;
-    printk(KERN_INFO "Scanning for key, starting at master block %llu\n", mnt[mountno]->super->master);
+    if (verbose >= 2)
+        pr_info("Scanning for key, starting at master block %llu\n", mnt[mountno]->super->master);
     for(i = 0; i < mnt[mountno]->super->master_list_len; i++) {
-        printk(KERN_INFO "Loading key block %llu\n", master_block);
+        if (verbose >= 2)
+            pr_info("Loading key block %llu\n", master_block);
         get_block(master_block, curr_keys, mountno);
         uint64_t blockno = 0;
         //char *value = "";
         uint64_t amnt_to_cpy = 0;
         if(find_key(curr_keys, &blockno, &amnt_to_cpy, key) == 0) {
-            printk(KERN_INFO "Found matching key, data is in block %llu with len %llu\n", blockno, amnt_to_cpy);
+            if (verbose >= 2)
+                pr_info("Found matching key, data is in block %llu with len %llu\n", blockno, amnt_to_cpy);
             if (data->value_len < amnt_to_cpy) {
                 amnt_to_cpy = data->value_len;
             }
@@ -605,6 +630,8 @@ static int read_fs(struct ioctl_data *data, char *key, int mountno) {
         }
         master_block = curr_keys -> older_blockno;
     }
+    if (verbose >= 2)
+        pr_info("No matching key found");
     return -ENOENT;
 }
 
@@ -617,7 +644,8 @@ static int read_fs(struct ioctl_data *data, char *key, int mountno) {
 static int my_ioctl(struct file *file, unsigned int unused, unsigned long arg)
 {
     struct ioctl_data data;
-    printk(KERN_INFO "Recieved ioctl\n");
+    if (verbose >= 2)
+        pr_info("Recieved ioctl\n");
     if (copy_from_user(&data, (void __user*)arg, sizeof(struct ioctl_data))) {
         return -EFAULT;
     }
@@ -634,7 +662,8 @@ static int my_ioctl(struct file *file, unsigned int unused, unsigned long arg)
         case IOCTL_CMD_PUT: // PUT key+keylen, data+datalen, mountno
         {
             // TODO: check for duplicate keys? Or let garbage collection do that?
-            printk(KERN_INFO "Command is PUT with %llu-byte key and %llu-byte val\n", data.key_len, data.value_len);
+            if (verbose >= 1)
+                pr_info("Command is PUT with %llu-byte key and %llu-byte val\n", data.key_len, data.value_len);
             // Copy value from userspace
             char* value = kzalloc(data.value_len, GFP_USER);
             if (copy_from_user(value, data.value, data.value_len))
@@ -647,7 +676,8 @@ static int my_ioctl(struct file *file, unsigned int unused, unsigned long arg)
         break;
         case IOCTL_CMD_GET: // GET key+keylen, empyty_data+emptydatalen, mountno
         {
-            printk(KERN_INFO "Command is GET with %llu-byte key and %llu-byte buffer\n", data.key_len, data.value_len);
+            if (verbose >= 1)
+                pr_info("Command is GET with %llu-byte key and %llu-byte buffer\n", data.key_len, data.value_len);
             // Get value from storage
             int ret = read_fs(&data, key, data.mountno);
             if (ret < 0)
@@ -662,18 +692,19 @@ static int my_ioctl(struct file *file, unsigned int unused, unsigned long arg)
         break;
         case IOCTL_CMD_DEL: // TODO
         {
-            printk(KERN_INFO "Command is DELETE with %llu-byte key\n", data.key_len);
+            if (verbose >= 1)
+                pr_info("Command is DELETE with %llu-byte key\n", data.key_len);
 
-            //     printk(KERN_INFO "%s %d\n", key, tracker);
+            //     pr_info("%s %d\n", key, tracker);
             // int loop = 0;
             // we only need to get the key here now go look for the value
             //  for(loop = 0; loop < tracker; loop++) {
-            //    printk(KERN_INFO "key %d of %d key %s\n", loop, tracker, all_data[loop].key);
+            //    pr_info("key %d of %d key %s\n", loop, tracker, all_data[loop].key);
             //     if (all_data[loop].key == NULL) {
             //         continue;
             //     }
             //     if(strcmp(all_data[loop].key, key) == 0) {
-            //         printk(KERN_INFO "found key... deleting\n");
+            //         pr_info("found key... deleting\n");
             //         all_data[loop].value = NULL;
             //         all_data[loop].key = NULL;
             //         break;
@@ -686,12 +717,12 @@ static int my_ioctl(struct file *file, unsigned int unused, unsigned long arg)
             uint64_t value_len;
             loff_t readPos = 0;
               while(readPos < end_pos) {
-                printk(KERN_INFO "%d\n", (int)readPos);
+                pr_info("%d\n", (int)readPos);
                 ret = kernel_read(filp, &key_len, 8, &readPos);
                 ret = kernel_read(filp, &value_len, 8, &readPos);
                 char *curr_key = kzalloc(key_len+1, GFP_USER);
                 void *curr_value = kzalloc(value_len, GFP_USER);
-                printk(KERN_INFO "lengths %llu %llu\n", key_len, value_len);
+                pr_info("lengths %llu %llu\n", key_len, value_len);
                 ret = kernel_read(filp, curr_key, key_len, &readPos);
                 curr_key[key_len] = 0;
                 if ((strcmp(curr_key, key) != 0)) {
@@ -728,7 +759,8 @@ static int my_ioctl(struct file *file, unsigned int unused, unsigned long arg)
 
             // zero out the file, then create and store superblock and other data structures
             // FIXME: data.value is a user pointer, need to copy to kernel
-            printk(KERN_INFO "Formatting device %s\n", devicename);
+            if (verbose >= 1)
+                pr_info("Formatting device %s\n", devicename);
            
             // Open device, get size, allocate and partially initialize superblock
             struct file *filp = filp_open(devicename, O_RDWR, 0644);
@@ -736,9 +768,10 @@ static int my_ioctl(struct file *file, unsigned int unused, unsigned long arg)
                 return -ENOENT;
 
             uint64_t fs_size = (uint64_t)i_size_read(file_inode(filp));
-            printk(KERN_INFO "Device opened, size is %lld bytes\n", fs_size);
+            if (verbose >= 2)
+                pr_info("Device opened, size is %lld bytes\n", fs_size);
 
-            // printk(KERN_INFO "Zeroing %lld bytes\n", size_in_bytes);
+            // pr_info("Zeroing %lld bytes\n", size_in_bytes);
             // FIXME: this code is broken due to string/char confusion; and
             // it is needlessly inefficient
             // loff_t pos = 0;
@@ -756,16 +789,19 @@ static int my_ioctl(struct file *file, unsigned int unused, unsigned long arg)
             new_mount = alloc_mount(super, filp);
 
             // Finish initializing superblock
-            printk(KERN_INFO "Initializing superblock\n");
+            if (verbose >= 1)
+                pr_info("Initializing superblock\n");
             super->magic = LS3_MAGIC;
             super->master = NUM_RESERVED_SUPERBLOCKS + new_mount->num_total_freemap_blocks;
             super->master_list_len = 1;
             super->timestamp = ktime_get_real_ns();
-            printk(KERN_INFO "           fs_size = 0x%016llx\n", super->fs_size);
-            printk(KERN_INFO "             magic = 0x%016llx\n", super->magic);
-            printk(KERN_INFO "            master = 0x%016llx\n", super->master);
-            printk(KERN_INFO "   master_list_len = 0x%016llx\n", super->master_list_len);
-            printk(KERN_INFO "         timestamp = 0x%016llx\n", super->timestamp);
+            if (verbose >= 1) {
+                pr_info("           fs_size = 0x%016llx\n", super->fs_size);
+                pr_info("             magic = 0x%016llx\n", super->magic);
+                pr_info("            master = 0x%016llx\n", super->master);
+                pr_info("   master_list_len = 0x%016llx\n", super->master_list_len);
+                pr_info("         timestamp = 0x%016llx\n", super->timestamp);
+            }
             // invalidate all indexes from superblock to to bitmap blocks
             for(i = 0; i < new_mount->num_total_freemap_blocks; i++) {
                 super->used_bitmaps[i] = -1;
@@ -775,7 +811,8 @@ static int my_ioctl(struct file *file, unsigned int unused, unsigned long arg)
             loff_t freemap_blockno = NUM_RESERVED_SUPERBLOCKS;
             for(i = 0; i < new_mount->num_freemap_blocks; i++) {
                 super->used_bitmaps[i] = freemap_blockno + i; // use half of the doubled superblocks
-                printk(KERN_INFO "   used_bitmaps[%d] = 0x%016llx\n", i, super->used_bitmaps[i]);
+                if (verbose >= 1)
+                    pr_info("   used_bitmaps[%d] = 0x%016llx\n", i, super->used_bitmaps[i]);
             }
 
             // status of block 0 is USED (for superblock)
@@ -785,7 +822,8 @@ static int my_ioctl(struct file *file, unsigned int unused, unsigned long arg)
             // status of 1 more block is USED (for master key block)
             bitmap_set(new_mount->bitmap, super->master, 1);
 
-            printk(KERN_INFO "Writing structures to device\n");
+            if (verbose >= 2)
+                pr_info("Writing structures to device\n");
 
             // superblock goes into block 0
             pos = 0;
@@ -798,13 +836,14 @@ static int my_ioctl(struct file *file, unsigned int unused, unsigned long arg)
             pos = super->master * PAGE_CACHE_SIZE;
             kernel_write(new_mount->filp, keys, PAGE_CACHE_SIZE, &pos);
 
-            printk(KERN_INFO "Finished formatting device\n");
+            if (verbose >= 2)
+                pr_info("Finished formatting device\n");
             return 0;
         }
         break;
         default:
         {
-            printk(KERN_INFO "Unrecognized ioctl number %lld\n", data.cmd);
+            pr_err("Unrecognized ioctl number %lld\n", data.cmd);
             return -EINVAL;
         }
         break;
@@ -828,28 +867,27 @@ static const struct file_operations my_fops = {
 
 int __init ls3_init(void) {
     int retval;
-    printk(KERN_INFO "Hello world!\n");
+    pr_info("Registering LS3 filesystem!\n");
 	register_filesystem(&ls3_type);
-    //end_pos = scan_for_end();
     retval = misc_register(&my_device);
 	return retval;
-    //return register_filesystem(&lfs_type);
 }
 
 void __exit ls3_cleanup(void)
 {
-   int i;
-   for(i = NUM_MOUNTS-1; i >= 0; i--) {
+    pr_info("Cleaning up module.\n");
+    int i;
+    for(i = NUM_MOUNTS-1; i >= 0; i--) {
         if(mnt[i] != NULL) {
-            printk(KERN_INFO "closing filp %p", mnt[i]->filp);
+            if (verbose >= 1)
+                pr_info("closing filp %p", mnt[i]->filp);
             filp_close(mnt[i]->filp, NULL);
         }
         // FREE ALL DATA HERE, UNMOUNT
-   }
+    }
 
     misc_deregister(&my_device);
     unregister_filesystem(&ls3_type);
-    printk(KERN_INFO "Cleaning up module.\n");
 }
 
 module_init(ls3_init)
