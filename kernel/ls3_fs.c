@@ -44,7 +44,9 @@ static struct dentry *ls3_mount(struct file_system_type *ls3_type, int flags, co
 static int ls3_fill_super (struct super_block *sb, void *data, int silent);
 static void kill_ls3_super(struct super_block *sb);
 static void get_block(uint64_t block, void* anything, int mountno);
+static void dump_all_blocks_hex(int mountno, bool skip_empty);
 static void dump_bitmap(unsigned long *bitmap, uint64_t num_bits);
+static void* make_block(void);
 static const struct file_operations my_fops;
 
 struct ioctl_data {
@@ -382,6 +384,10 @@ static int ls3_fill_super (struct super_block *sb, void *data, int silent)
         dump_bitmap(m->bitmap, m->num_blocks);
     }
 
+    if (verbose >= 3) {
+        dump_all_blocks_hex(mountno, verbose == 3);
+    }
+
     struct inode *root;
     struct dentry *root_dentry;
 
@@ -471,6 +477,64 @@ static int find_key(struct key_block *curr_keys, uint64_t *blockno, uint64_t *bl
         }
     }
     return -1;
+}
+
+static void hex_to_ascii(char *buf, uint8_t *data, int n) {
+    int i;
+    for (i = 0; i < n; i++)
+        buf[i] = (' ' <= data[i] && data[i] <= '~') ? (char)data[i] : '.';
+}
+
+static void dump_block_hex(void *blk, uint64_t blockno) {
+    int i;
+    uint32_t *data = (uint32_t *)blk;
+    char buf[4*8+1];
+    buf[4*8] = '\0';
+    for (i = 0; i < PAGE_CACHE_SIZE; i += 4*8) {
+        hex_to_ascii(buf, (uint8_t *)&data[i], 4*8);
+        if (i == 0)
+            pr_info("%08x %08x %08x %08x %08x %08x %08x %08x %s  offset %d block %llu\n",
+                    htonl(data[i+0]), htonl(data[i+1]), htonl(data[i+2]), htonl(data[i+3]),
+                    htonl(data[i+4]), htonl(data[i+5]), htonl(data[i+6]), htonl(data[i+7]),
+                    buf, i, blockno);
+        else
+            pr_info("%08x %08x %08x %08x %08x %08x %08x %08x %s  offset %d\n",
+                    htonl(data[i+0]), htonl(data[i+1]), htonl(data[i+2]), htonl(data[i+3]),
+                    htonl(data[i+4]), htonl(data[i+5]), htonl(data[i+6]), htonl(data[i+7]),
+                    buf, i);
+    }
+}
+
+static void dump_all_blocks_hex(int mountno, bool skip_empty) {
+    struct mount_data *m = mnt[mountno];
+    pr_info("Contents of device for mount[%d] (%llu blocks):\n",
+            mountno, m ? m->num_blocks : 0);
+    if (m == NULL) {
+        pr_info("  not yet mounted\n");
+        return;
+    }
+    void *blk = make_block();
+    uint64_t num_skipped = 0;
+    uint64_t i;
+    for (i = 0; i < m->num_blocks; i++) {
+        if (skip_empty) {
+            if (!test_bit(i, m->bitmap)) {
+                num_skipped++;
+                continue;
+            }
+            if (num_skipped > 0) {
+                pr_info(" ... (skipped %lld unused block%s) ...\n",
+                        num_skipped, num_skipped > 1 ? "s" : "");
+            }
+            num_skipped = 0;
+        }
+        get_block(i, blk, mountno);
+        dump_block_hex(blk, i);
+    }
+    if (num_skipped > 0) {
+        pr_info(" ... (skipped %lld unused block%s) ...\n",
+                num_skipped, num_skipped > 1 ? "s" : "");
+    }
 }
 
 static void dump_bitmap(unsigned long *bitmap, uint64_t num_bits) {
