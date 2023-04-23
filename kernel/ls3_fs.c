@@ -57,23 +57,25 @@ int len_device_name;
 */
 
 struct data_block {
-//uint64_t data_len;
-char value[8192-8];
+char value[PAGE_CACHE_SIZE-8];
 uint64_t next_blockno;
 };
 static_assert(sizeof(struct data_block) == PAGE_CACHE_SIZE);
 
 
+#define MAX_KEYLEN (127)
 struct key_entry { // 144 bytes per struct
-char key[128];
-uint64_t data_len; // bytes
-uint64_t data_blockno;
+char key[MAX_KEYLEN+1]; // zero-terminated string, 128 bytes total
+uint64_t data_len; // 8 bytes
+uint64_t data_blockno; // 8 bytes
 };
+static_assert(sizeof(struct key_entry) == 144);
 
+#define ENTRIES_PER_KEYBLOCK (56)
 struct key_block {
 uint64_t older_blockno;
-struct key_entry entry[56];
-char unused[120];
+struct key_entry entry[ENTRIES_PER_KEYBLOCK];
+char unused[120]; // padding to ensure key_block is one full block
 };
 static_assert(sizeof(struct key_block) == PAGE_CACHE_SIZE);
 
@@ -362,7 +364,9 @@ static int ls3_fill_super (struct super_block *sb, void *data, int silent)
             "         num_freemap_blocks = %lld\n"
             "   num_total_freemap_blocks = %lld\n",
             super->fs_size, m->num_blocks, m->num_freemap_bytes, m->num_freemap_blocks, m->num_total_freemap_blocks);
-    printk(KERN_INFO "bitmap first block: %d", m->super->used_bitmaps[0]);
+    for(i = 0; i < m->num_freemap_blocks; i++) {
+      printk(KERN_INFO "           freemap_block[%d] = %lld", i, m->super->used_bitmaps[i]);
+    }
 
     // Load bitmap from device
     for(i = 0; i < m->num_freemap_blocks; i++) {
@@ -459,20 +463,29 @@ static int find_key(struct key_block *curr_keys, int *blockno, int *blocksize, c
     return -1;
 }
 
+static void dump_bitmap(unsigned long *bitmap, uint64_t num_bits) {
+    uint64_t i;
+    for (i = 0; i < num_bits; i += 8) {
+        printk(KERN_INFO " %08llx", bitmap[i/8]);
+        if ((i+8) % 32 == 0)
+            printk(KERN_INFO " bits %llu to %llu\n", i-24, max(i+8, num_bits)-1);
+    }
+    // print last, partial line 
+    for ( ; i % 32 != 0; i += 8)
+        printk(KERN_INFO " %8s", "");
+    printk(KERN_INFO " bits %llu to %llu\n", i-32, max(i, num_bits)-1);
+}
 
 // NEED PARAM, ARE WE RESERVING SUPER OR DATA OR FREE? data is 35 onward+
-
 static uint64_t reserve_block(uint64_t len, int mountno) {
-    // BUG_ON(len != 1);
+    BUG_ON(len != 1); // for now, we only handle the len=1 case
     // search the free bitmap, find a 1, change 1 to 0 and return corresponding number that goes with the block.
-   // loff_t size_in_bytes = i_size_read(file_inode(mnt[mountno]->filp));
-    loff_t num_blocks = mnt[mountno]->super->fs_size/PAGE_CACHE_SIZE; //+ 1; // WHAT IF SIZE IN BYTES < PAGE SIZE?
-    int i;
-    printk(KERN_INFO "RESERVING 1 of %d BLOCKS\n", num_blocks);
-    for(i = 0; i < (num_blocks+sizeof(unsigned long)-1)/sizeof(unsigned long); i++) {
-        printk(KERN_INFO "bit %08x \n", mnt[mountno]->bitmap[i]);
-    }
-    uint64_t bit, prev = 0, count = 0;
+    // loff_t size_in_bytes = i_size_read(file_inode(mnt[mountno]->filp));
+    loff_t num_blocks = mnt[mountno]->num_blocks;
+    printk(KERN_INFO "Reserving one of %lld blocks, freemap is:\n", num_blocks);
+    dump_bitmap(mnt[mountno]->bitmap, num_blocks);
+    
+    //uint64_t bit, prev = 0, count = 0;
    // uint64_t block = find_first_bit(mnt[mountno]->bitmap, num_blocks);
     uint64_t block = bitmap_find_free_region(mnt[mountno]->bitmap, num_blocks, 0);
     // we set all bits in the bitmap (1) and then clear them when in use (0)
@@ -495,7 +508,7 @@ static uint64_t reserve_block(uint64_t len, int mountno) {
         count++;
     } */
     // printk(KERN_INFO "FAILED TO RESERVE BLOCK");
-    printk(KERN_INFO "BLOCK TO RESERVE %d", block);
+    printk(KERN_INFO "Reserved block %llu\n", block);
     //bitmap_clear(mnt[mountno]->bitmap, block, len);
     return block;
 }
@@ -558,39 +571,35 @@ static void write_fs(char *key, char *data, uint64_t key_len, uint64_t data_len,
 }
 
 static int read_fs(struct ioctl_data *data, char *key, int mountno) {
-    if (mnt[mountno]->filp) {
-                struct key_block *curr_keys = make_block();
-                int i = 0;
-                int master_block;
-                master_block = mnt[mountno]->super->master;
-                printk(KERN_INFO "super master %d\n", mnt[mountno]->super->master);
-                for(i = 0; i < mnt[mountno]->super->master_list_len; i++) {
-                        get_block(master_block, curr_keys, mountno);
-                        printk(KERN_INFO "got the block %d \n", master_block);
-                        int blockno = 0;
-                        //char *value = "";
-                        int amnt_to_cpy = 0;
-                        if(find_key(curr_keys, &blockno, &amnt_to_cpy, key) >= 0) {
-                            int pages = 0;
-                            printk(KERN_INFO "found matching key in %d amount %d", blockno, amnt_to_cpy);
-                            if (data->value_len < amnt_to_cpy) {
-                                amnt_to_cpy = data->value_len;
-                            }
-                            while(amnt_to_cpy > 0) {
-                                struct data_block *our_data_block;
-                                our_data_block = kzalloc(PAGE_CACHE_SIZE, GFP_USER);
-                                get_block(blockno, our_data_block, mountno);
-                                // we have the data block, need to read it and its following blocks
-                                copy_to_user(data->value+pages*PAGE_CACHE_SIZE, our_data_block->value, min(PAGE_CACHE_SIZE, amnt_to_cpy));
-                                amnt_to_cpy -= PAGE_CACHE_SIZE;
-                                pages++;
-                            } // last block might not be ma full 8192, error check for buffer size
-                                return 0;
-                        }
-                        master_block = curr_keys -> older_blockno;
-                }
+    if (!mnt[mountno]->filp)
+        return -EBADF;
+    struct key_block *curr_keys = make_block();
+    int i;
+    uint64_t master_block = mnt[mountno]->super->master;
+    printk(KERN_INFO "Scanning for key, starting at master block %llu\n", mnt[mountno]->super->master);
+    for(i = 0; i < mnt[mountno]->super->master_list_len; i++) {
+        printk(KERN_INFO "Loading key block %llu\n", master_block);
+        get_block(master_block, curr_keys, mountno);
+        int blockno = 0;
+        //char *value = "";
+        uint64_t amnt_to_cpy = 0;
+        if(find_key(curr_keys, &blockno, &amnt_to_cpy, key) >= 0) {
+            printk(KERN_INFO "Found matching key, data is in block %llu with len %llu\n", blockno, amnt_to_cpy);
+            if (data->value_len < amnt_to_cpy) {
+                amnt_to_cpy = data->value_len;
+            }
+            struct data_block *our_data_block = make_block();
+            for (int pages = 0; amnt_to_cpy > 0; pages++) {
+                get_block(blockno, our_data_block, mountno);
+                // we have the data block, need to read it and its following blocks
+                copy_to_user(data->value+pages*PAGE_CACHE_SIZE, our_data_block->value, min(PAGE_CACHE_SIZE, amnt_to_cpy));
+                amnt_to_cpy -= PAGE_CACHE_SIZE;
+            }
+            return 0;
+        }
+        master_block = curr_keys -> older_blockno;
     }
-    return -EBADF;
+    return -ENOENT;
 }
 
 
@@ -598,115 +607,84 @@ static int read_fs(struct ioctl_data *data, char *key, int mountno) {
 static int my_ioctl(struct file *file, unsigned int unused, unsigned long arg)
 {
     struct ioctl_data data;
-    printk(KERN_INFO "ioctl\n");
-    int ret;
+    printk(KERN_INFO "Recieved ioctl\n");
     if (copy_from_user(&data, (void __user*)arg, sizeof(struct ioctl_data))) {
         return -EFAULT;
     }
-    printk(KERN_INFO "%d cmd\n", data.cmd);
     switch(data.cmd) {
-        case 1:
+        case 1: // PUT key+keylen, data+datalen, mountno
             {
-                printk(KERN_INFO "recieved.\n");
-                char* key;
-                printk(KERN_INFO "%d\n", data.key_len);
-                printk(KERN_INFO "%d\n", data.value_len);
-                if(data.key_len > 1000) {
-                    return -1;
-                }
-                key = kzalloc(data.key_len+1, GFP_USER);
-                char* value = kzalloc(data.value_len, GFP_USER);
-                if (copy_from_user(key, data.key, data.key_len)) {
-                    return -1;
-                }
-                if (copy_from_user(value, data.value, data.value_len)) {
-                    return -1;
-                }
-                key[data.key_len] = 0;
-                value[data.value_len] = 0;
-                printk(KERN_INFO "%s %s %d %d\n", key, value, data.key_len, data.value_len);
+                // TODO: check for duplicate keys? Or let garbage collection do
+                // that?
+                printk(KERN_INFO "Command is PUT with %llu-byte key and %llu-byte val\n", data.key_len, data.value_len);
+                if (data.key_len > MAX_KEYLEN)
+                    return -EINVAL;
 
-            // int place = write_array(key, value, data.key_len, data.value_len);
-            // if (place < 0) {
-                //   return -EFAULT;
-                //}
-                // flip around logic
-            //  write_pos = end_pos;
-                //leftover = 0;
-                //if (place == tracker) {
-                //  tracker = tracker + 1;
-                //} else {
-                //  if (filp) {
-                    //    ret = look_for_blanks(place, &data);
-                    //  if (!ret) {
-                        //    return -EFAULT;
-                        //}
-                // }
-                //}
+                char* key = kzalloc(data.key_len+1, GFP_USER);
+                char* value = kzalloc(data.value_len, GFP_USER);
+                if (copy_from_user(key, data.key, data.key_len))
+                    return -EFAULT;
+                key[data.key_len] = 0;
+                if (copy_from_user(value, data.value, data.value_len))
+                    return -EFAULT;
+
                 write_fs(key, value, data.key_len, data.value_len, data.mountno);
-                // use filp
-                //char data[data.key_len+data.value_len+1] = key + " " + value;
-                
-                break;
-            }
-        case 2:
-        {
-            printk(KERN_INFO "%d\n", data.key_len);
-            if(data.key_len > 1000) {
                 return 0;
+
             }
-            char* key;
-            key = kzalloc(data.key_len+1, GFP_USER);
-            if (copy_from_user(key, data.key, data.key_len)) {
+            break;
+        case 2: // GET key+keylen, empyty_data+emptydatalen, mountno
+        {
+            printk(KERN_INFO "Command is GET with %llu-byte key and %llu-byte buffer\n", data.key_len, data.value_len);
+            if (data.key_len > MAX_KEYLEN)
+                return -EINVAL;
+            char *key = kzalloc(data.key_len+1, GFP_USER);
+            if (copy_from_user(key, data.key, data.key_len))
                 return -EFAULT;
-            }
             key[data.key_len] = 0;
-          //  printk(KERN_INFO "%s %d\n", key, tracker);
-            // we only need to get the key here now go look for the value
-            //read_array(&data, key);
-            ret = read_fs(&data, key, data.mountno);
-            if (ret < 0) {
+            int ret = read_fs(&data, key, data.mountno);
+            if (ret < 0)
                 return ret;
-            }
-           // void *data_addr = data;
-            if (copy_to_user((void __user*)arg, &data, sizeof(struct ioctl_data))) {
+            // object data has already been copied, only need to copy the ioctl
+            // data so userspace gets updated length
+            if (copy_to_user((void __user*)arg, &data, sizeof(struct ioctl_data)))
                 return -EFAULT;
-            }
+
+            return 0;
         }
         break;
-        case 3:
+        case 3: // TODO: DELETE
         {
-            printk(KERN_INFO "%d\n", data.key_len);
-            if(data.key_len > 1000) {
-                return 0;
-            }
-            char* key;
-            key = kzalloc(data.key_len+1, GFP_USER);
-            if (copy_from_user(key, data.key, data.key_len)) {
+            printk(KERN_INFO "Command is DELETE with %llu-byte key\n", data.key_len);
+            if (data.key_len > MAX_KEYLEN)
+                return -EINVAL;
+            char *key = kzalloc(data.key_len+1, GFP_USER);
+            if (copy_from_user(key, data.key, data.key_len))
                 return -EFAULT;
-            }
             key[data.key_len] = 0;
-            //     printk(KERN_INFO "%s %d\n", key, tracker);
-            int loop = 0;
-            // we only need to get the key here now go look for the value
-          //  for(loop = 0; loop < tracker; loop++) {
-            //    printk(KERN_INFO "key %d of %d key %s\n", loop, tracker, all_data[loop].key);
-              //  if (all_data[loop].key == NULL) {
-                //    continue;
-                //}
-                //if(strcmp(all_data[loop].key, key) == 0) {
-                  //  printk(KERN_INFO "found key... deleting\n");
-                    //all_data[loop].value = NULL;
-                    //all_data[loop].key = NULL;
-                    //break;
-                //}
-            //}
 
+            //     printk(KERN_INFO "%s %d\n", key, tracker);
+            // int loop = 0;
+            // we only need to get the key here now go look for the value
+            //  for(loop = 0; loop < tracker; loop++) {
+            //    printk(KERN_INFO "key %d of %d key %s\n", loop, tracker, all_data[loop].key);
+            //     if (all_data[loop].key == NULL) {
+            //         continue;
+            //     }
+            //     if(strcmp(all_data[loop].key, key) == 0) {
+            //         printk(KERN_INFO "found key... deleting\n");
+            //         all_data[loop].value = NULL;
+            //         all_data[loop].key = NULL;
+            //         break;
+            //     }
+            //   }
+
+             /*
             ssize_t ret;
             uint64_t key_len;
             uint64_t value_len;
             loff_t readPos = 0;
-             /*     while(readPos < end_pos) {
+              while(readPos < end_pos) {
                 printk(KERN_INFO "%d\n", (int)readPos);
                 ret = kernel_read(filp, &key_len, 8, &readPos);
                 ret = kernel_read(filp, &value_len, 8, &readPos);
@@ -730,16 +708,16 @@ static int my_ioctl(struct file *file, unsigned int unused, unsigned long arg)
                 kernel_write(filp, key_mem_addr, size, &readPos);
                 return 0;
             }*/
-        // implement get
-        // add duplicate checking
+        
 
-        // need to free data here!!!!
-        // use access_ok
+            // need to free data here!!!!
+            // use access_ok
 
-        // use cmd to dilineate btwn put/get using cmd #
+            // use cmd to dilineate btwn put/get using cmd #
+            return -EIO; // this operation not fully implemented
         }
         break;
-        case 4: // new number for format from mk2efs.ls3:
+        case 4: // FORMAT (used by mk2efs.ls3):
         {
             struct mount_data *new_mount;
             struct file *filp;
@@ -826,7 +804,7 @@ static int my_ioctl(struct file *file, unsigned int unused, unsigned long arg)
         break;
 
     }
-    return 0;
+    return ret;
 }
 
 //populate data struct for file operations
