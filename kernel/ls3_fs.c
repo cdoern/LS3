@@ -45,6 +45,7 @@ static int ls3_fill_super (struct super_block *sb, void *data, int silent);
 static void kill_ls3_super(struct super_block *sb);
 static void get_block(uint64_t block, void* anything, int mountno);
 static void dump_all_blocks_hex(int mountno, bool skip_empty);
+static void dump_block_hex(void *blk, uint64_t blockno);
 static void dump_bitmap(unsigned long *bitmap, uint64_t num_bits);
 static void* make_block(void);
 static const struct file_operations my_fops;
@@ -487,21 +488,21 @@ static void hex_to_ascii(char *buf, uint8_t *data, int n) {
 
 static void dump_block_hex(void *blk, uint64_t blockno) {
     int i;
-    uint32_t *data = (uint32_t *)blk;
+    uint32_t *data = (uint32_t *)blk; // print 4 bytes at a time
     char buf[4*8+1];
     buf[4*8] = '\0';
-    for (i = 0; i < PAGE_CACHE_SIZE; i += 4*8) {
+    for (i = 0; i < PAGE_CACHE_SIZE/4; i += 8) {
         hex_to_ascii(buf, (uint8_t *)&data[i], 4*8);
         if (i == 0)
             pr_info("%08x %08x %08x %08x %08x %08x %08x %08x %s  offset %d block %llu\n",
                     htonl(data[i+0]), htonl(data[i+1]), htonl(data[i+2]), htonl(data[i+3]),
                     htonl(data[i+4]), htonl(data[i+5]), htonl(data[i+6]), htonl(data[i+7]),
-                    buf, i, blockno);
+                    buf, 4*i, blockno);
         else
             pr_info("%08x %08x %08x %08x %08x %08x %08x %08x %s  offset %d\n",
                     htonl(data[i+0]), htonl(data[i+1]), htonl(data[i+2]), htonl(data[i+3]),
                     htonl(data[i+4]), htonl(data[i+5]), htonl(data[i+6]), htonl(data[i+7]),
-                    buf, i);
+                    buf, 4*i);
     }
 }
 
