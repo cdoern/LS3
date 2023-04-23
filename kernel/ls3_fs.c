@@ -609,6 +609,10 @@ static int read_fs(struct ioctl_data *data, char *key, int mountno) {
 }
 
 
+#define IOCTL_CMD_PUT (1)
+#define IOCTL_CMD_GET (2)
+#define IOCTL_CMD_DEL (3)
+#define IOCTL_CMD_FMT (4)
 
 static int my_ioctl(struct file *file, unsigned int unused, unsigned long arg)
 {
@@ -617,57 +621,48 @@ static int my_ioctl(struct file *file, unsigned int unused, unsigned long arg)
     if (copy_from_user(&data, (void __user*)arg, sizeof(struct ioctl_data))) {
         return -EFAULT;
     }
+
+    // For all commands, copy key from userspace
+    if (data.key_len > MAX_KEYLEN)
+        return -EINVAL;
+    char *key = kzalloc(data.key_len+1, GFP_USER);
+    if (copy_from_user(key, data.key, data.key_len))
+        return -EFAULT;
+    key[data.key_len] = 0;
+
     switch(data.cmd) {
-        case 1: // PUT key+keylen, data+datalen, mountno
-            {
-                // TODO: check for duplicate keys? Or let garbage collection do
-                // that?
-                printk(KERN_INFO "Command is PUT with %llu-byte key and %llu-byte val\n", data.key_len, data.value_len);
-                if (data.key_len > MAX_KEYLEN)
-                    return -EINVAL;
+        case IOCTL_CMD_PUT: // PUT key+keylen, data+datalen, mountno
+        {
+            // TODO: check for duplicate keys? Or let garbage collection do that?
+            printk(KERN_INFO "Command is PUT with %llu-byte key and %llu-byte val\n", data.key_len, data.value_len);
+            // Copy value from userspace
+            char* value = kzalloc(data.value_len, GFP_USER);
+            if (copy_from_user(value, data.value, data.value_len))
+                return -EFAULT;
+            // Put into storage
+            write_fs(key, value, data.key_len, data.value_len, data.mountno);
+            return 0;
 
-                char* key = kzalloc(data.key_len+1, GFP_USER);
-                char* value = kzalloc(data.value_len, GFP_USER);
-                if (copy_from_user(key, data.key, data.key_len))
-                    return -EFAULT;
-                key[data.key_len] = 0;
-                if (copy_from_user(value, data.value, data.value_len))
-                    return -EFAULT;
-
-                write_fs(key, value, data.key_len, data.value_len, data.mountno);
-                return 0;
-
-            }
-            break;
-        case 2: // GET key+keylen, empyty_data+emptydatalen, mountno
+        }
+        break;
+        case IOCTL_CMD_GET: // GET key+keylen, empyty_data+emptydatalen, mountno
         {
             printk(KERN_INFO "Command is GET with %llu-byte key and %llu-byte buffer\n", data.key_len, data.value_len);
-            if (data.key_len > MAX_KEYLEN)
-                return -EINVAL;
-            char *key = kzalloc(data.key_len+1, GFP_USER);
-            if (copy_from_user(key, data.key, data.key_len))
-                return -EFAULT;
-            key[data.key_len] = 0;
+            // Get value from storage
             int ret = read_fs(&data, key, data.mountno);
             if (ret < 0)
                 return ret;
-            // object data has already been copied, only need to copy the ioctl
-            // data so userspace gets updated length
+            // value has already been copied, only need to copy the ioctl
+            // data so userspace gets updated data.value_len
             if (copy_to_user((void __user*)arg, &data, sizeof(struct ioctl_data)))
                 return -EFAULT;
 
             return 0;
         }
         break;
-        case 3: // TODO: DELETE
+        case IOCTL_CMD_DEL: // TODO
         {
             printk(KERN_INFO "Command is DELETE with %llu-byte key\n", data.key_len);
-            if (data.key_len > MAX_KEYLEN)
-                return -EINVAL;
-            char *key = kzalloc(data.key_len+1, GFP_USER);
-            if (copy_from_user(key, data.key, data.key_len))
-                return -EFAULT;
-            key[data.key_len] = 0;
 
             //     printk(KERN_INFO "%s %d\n", key, tracker);
             // int loop = 0;
@@ -723,24 +718,25 @@ static int my_ioctl(struct file *file, unsigned int unused, unsigned long arg)
             return -EIO; // this operation not fully implemented
         }
         break;
-        case 4: // FORMAT (used by mk2efs.ls3):
+        case IOCTL_CMD_FMT: // FORMAT (used by mk2efs.ls3):
         {
             struct mount_data *new_mount;
-            struct file *filp;
-            struct superblock *super;
             int i;
             loff_t pos;
-            void *keys;
+
+            char *devicename = key;
 
             // zero out the file, then create and store superblock and other data structures
             // FIXME: data.value is a user pointer, need to copy to kernel
-            printk(KERN_INFO "Formatting device %s\n", (char *)data.value); 
+            printk(KERN_INFO "Formatting device %s\n", devicename);
            
             // Open device, get size, allocate and partially initialize superblock
-            filp = filp_open(data.value, O_RDWR, 0644);
-            super = make_block();
-            super->fs_size = (uint64_t)i_size_read(file_inode(filp));
-            printk(KERN_INFO "Device opened, size is %lld bytes\n", super->fs_size);
+            struct file *filp = filp_open(devicename, O_RDWR, 0644);
+            if (filp == NULL)
+                return -ENOENT;
+
+            uint64_t fs_size = (uint64_t)i_size_read(file_inode(filp));
+            printk(KERN_INFO "Device opened, size is %lld bytes\n", fs_size);
 
             // printk(KERN_INFO "Zeroing %lld bytes\n", size_in_bytes);
             // FIXME: this code is broken due to string/char confusion; and
@@ -755,6 +751,8 @@ static int my_ioctl(struct file *file, unsigned int unused, unsigned long arg)
             // }
 
             // Allocate the mount structure, calculate all size parameters
+            struct superblock *super = make_block();
+            super->fs_size = fs_size;
             new_mount = alloc_mount(super, filp);
 
             // Finish initializing superblock
@@ -796,7 +794,7 @@ static int my_ioctl(struct file *file, unsigned int unused, unsigned long arg)
             pos = freemap_blockno * PAGE_CACHE_SIZE;
             kernel_write(new_mount->filp, new_mount->bitmap, new_mount->num_freemap_blocks * PAGE_CACHE_SIZE, &pos);
             // key block goes after that, but it will be entirely blank
-            keys = make_block(); // all zeros, initially
+            void *keys = make_block(); // all zeros, initially
             pos = super->master * PAGE_CACHE_SIZE;
             kernel_write(new_mount->filp, keys, PAGE_CACHE_SIZE, &pos);
 
