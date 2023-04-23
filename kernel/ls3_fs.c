@@ -559,42 +559,21 @@ static void dump_bitmap(unsigned long *bitmap, uint64_t num_bits) {
 }
 
 // NEED PARAM, ARE WE RESERVING SUPER OR DATA OR FREE? data is 35 onward+
-static uint64_t reserve_block(uint64_t len, int mountno) {
-    BUG_ON(len != 1); // for now, we only handle the len=1 case
+static uint64_t reserve_block(int mountno) {
     // search the free bitmap, find a 1, change 1 to 0 and return corresponding number that goes with the block.
-    // loff_t size_in_bytes = i_size_read(file_inode(mnt[mountno]->filp));
-    loff_t num_blocks = mnt[mountno]->num_blocks;
+
+    uint64_t num_blocks = mnt[mountno]->num_blocks;
     if (verbose >= 3) {
         pr_info("Reserving one of %lld blocks, freemap is:\n", num_blocks);
         dump_bitmap(mnt[mountno]->bitmap, num_blocks);
     }
 
-    //uint64_t bit, prev = 0, count = 0;
-    // uint64_t block = find_first_bit(mnt[mountno]->bitmap, num_blocks);
-    uint64_t block = bitmap_find_free_region(mnt[mountno]->bitmap, num_blocks, 0);
-    // we set all bits in the bitmap (1) and then clear them when in use (0)
-    // here we then want to get the first set bit
-    // for some reason find_first_bit always reports 0
+    int order = 0; // 2^order = 1, looking for region of size 1 bit
+    uint64_t block = bitmap_find_free_region(mnt[mountno]->bitmap, num_blocks, order);
 
-
-    /* for_each_set_bit (bit, mnt[mountno]->bitmap, 1) {
-       pr_info("%d bit %d prev", bit, prev);
-       if (bit != 1) // if prev is not the same as our bit
-    // in our case, this should be if prev != 1
-    count = 0; // reset count
-    prev = bit; // prev = our current bit
-    // leaving this for now, this lets us clear multiple bits at once but for now just one.
-    if (count == len) { // if our count+1 is the len we are looking for, return that bit
-    pr_info("RETURNING BIT");
-    bitmap_clear(mnt[mountno]->bitmap, bit, len);
-    return bit;
-    }
-    count++;
-    } */
-    // pr_info("FAILED TO RESERVE BLOCK");
     if (verbose >= 1)
         pr_info("Reserved block %llu\n", block);
-    //bitmap_clear(mnt[mountno]->bitmap, block, len);
+
     return block;
 }
 
@@ -628,12 +607,12 @@ static void write_fs(char *key, char *data, uint64_t key_len, uint64_t data_len,
             // TODO
         }
         curr_keys -> entry[i].data_len = data_len;
-        curr_keys -> entry[i].data_blockno = reserve_block(1, mountno);
+        curr_keys -> entry[i].data_blockno = reserve_block(mountno);
         strcpy(curr_keys -> entry[i].key, key);
 
         // struct key_block new_key_block;
         uint64_t new_key_block;
-        new_key_block = reserve_block(1, mountno);
+        new_key_block = reserve_block(mountno);
 
         struct data_block *new_data_block;
         new_data_block = make_block();
