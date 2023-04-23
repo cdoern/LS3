@@ -56,8 +56,9 @@ int len_device_name;
 };
 */
 
+#define DATA_BLOCK_PAYLOAD (PAGE_CACHE_SIZE-8)
 struct data_block {
-char value[PAGE_CACHE_SIZE-8];
+char value[DATA_BLOCK_PAYLOAD];
 uint64_t next_blockno;
 };
 static_assert(sizeof(struct data_block) == PAGE_CACHE_SIZE);
@@ -442,17 +443,17 @@ static void get_block(uint64_t block, void* anything, int mountno) {
 
 static int find_empty_key(struct key_block *curr_keys) {
     int i = 0;
-    for(i = 0; i < 56; i++) {
-        if(curr_keys -> entry[i].key[0] == 0) {
+    for(i = 0; i < ENTRIES_PER_KEYBLOCK; i++) {
+        if(curr_keys -> entry[i].key[0] == '\0') {
             return i;
         }
     }
     return -1;
 }
 
-static int find_key(struct key_block *curr_keys, int *blockno, int *blocksize, char *key_str) {
+static int find_key(struct key_block *curr_keys, uint64_t *blockno, uint64_t *blocksize, char *key_str) {
     int i = 0;
-    for(i = 0; i < 56; i++) {
+    for(i = 0; i < ENTRIES_PER_KEYBLOCK; i++) {
         printk(KERN_INFO "entry %d: key: %s\n", i, curr_keys->entry[i].key);
         if(!strcmp(curr_keys -> entry[i].key, key_str)) {
             *blockno = curr_keys->entry[i].data_blockno;
@@ -466,7 +467,7 @@ static int find_key(struct key_block *curr_keys, int *blockno, int *blocksize, c
 static void dump_bitmap(unsigned long *bitmap, uint64_t num_bits) {
     uint64_t i;
     for (i = 0; i < num_bits; i += 8) {
-        printk(KERN_INFO " %08llx", bitmap[i/8]);
+        printk(KERN_INFO " %08lx", bitmap[i/8]);
         if ((i+8) % 32 == 0)
             printk(KERN_INFO " bits %llu to %llu\n", i-24, max(i+8, num_bits)-1);
     }
@@ -580,20 +581,25 @@ static int read_fs(struct ioctl_data *data, char *key, int mountno) {
     for(i = 0; i < mnt[mountno]->super->master_list_len; i++) {
         printk(KERN_INFO "Loading key block %llu\n", master_block);
         get_block(master_block, curr_keys, mountno);
-        int blockno = 0;
+        uint64_t blockno = 0;
         //char *value = "";
         uint64_t amnt_to_cpy = 0;
-        if(find_key(curr_keys, &blockno, &amnt_to_cpy, key) >= 0) {
+        if(find_key(curr_keys, &blockno, &amnt_to_cpy, key) == 0) {
             printk(KERN_INFO "Found matching key, data is in block %llu with len %llu\n", blockno, amnt_to_cpy);
             if (data->value_len < amnt_to_cpy) {
                 amnt_to_cpy = data->value_len;
             }
+            // we have the first data block, need to read it and its following blocks
             struct data_block *our_data_block = make_block();
-            for (int pages = 0; amnt_to_cpy > 0; pages++) {
+            void __user* value = data->value;
+            while (amnt_to_cpy > 0) {
                 get_block(blockno, our_data_block, mountno);
-                // we have the data block, need to read it and its following blocks
-                copy_to_user(data->value+pages*PAGE_CACHE_SIZE, our_data_block->value, min(PAGE_CACHE_SIZE, amnt_to_cpy));
-                amnt_to_cpy -= PAGE_CACHE_SIZE;
+                uint64_t payload = DATA_BLOCK_PAYLOAD;
+                if (payload > amnt_to_cpy)
+                  payload = amnt_to_cpy;
+                copy_to_user(value, our_data_block->value, payload);
+                value += payload;
+                amnt_to_cpy -= payload;
             }
             return 0;
         }
@@ -727,7 +733,8 @@ static int my_ioctl(struct file *file, unsigned int unused, unsigned long arg)
             void *keys;
 
             // zero out the file, then create and store superblock and other data structures
-            printk(KERN_INFO "Formatting device %s\n", data.value); 
+            // FIXME: data.value is a user pointer, need to copy to kernel
+            printk(KERN_INFO "Formatting device %s\n", (char *)data.value); 
            
             // Open device, get size, allocate and partially initialize superblock
             filp = filp_open(data.value, O_RDWR, 0644);
@@ -794,6 +801,7 @@ static int my_ioctl(struct file *file, unsigned int unused, unsigned long arg)
             kernel_write(new_mount->filp, keys, PAGE_CACHE_SIZE, &pos);
 
             printk(KERN_INFO "Finished formatting device\n");
+            return 0;
         }
         break;
         default:
@@ -804,7 +812,7 @@ static int my_ioctl(struct file *file, unsigned int unused, unsigned long arg)
         break;
 
     }
-    return ret;
+    return -EINVAL;
 }
 
 //populate data struct for file operations
