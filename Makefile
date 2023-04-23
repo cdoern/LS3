@@ -82,7 +82,7 @@ zero:
 .PHONY: insmod
 insmod:
 	sync # to ensure files are stored before crashing
-	sudo insmod kernel/ls3_fs.ko backing_file=$(BACKING_FILE) verbose=1
+	sudo insmod kernel/ls3_fs.ko verbose=1
 
 .PHONY: rmmod
 rmmod:
