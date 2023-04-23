@@ -300,7 +300,7 @@ static struct dentry *ls3_create_file (struct super_block *sb,
 	return 0;*/
 }
 
-static atomic_t data, subcounter;
+// static atomic_t data, subcounter;
 
 /*
 static void ls3_create_files (struct super_block *sb, struct dentry *root)
