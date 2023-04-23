@@ -826,7 +826,7 @@ static const struct file_operations my_fops = {
 };
 
 
-static int __init main(void) {
+int __init ls3_init(void) {
     int retval;
     printk(KERN_INFO "Hello world!\n");
 	register_filesystem(&ls3_type);
@@ -836,7 +836,7 @@ static int __init main(void) {
     //return register_filesystem(&lfs_type);
 }
 
-static void __exit cleanup(void)
+void __exit ls3_cleanup(void)
 {
    int i;
    for(i = NUM_MOUNTS-1; i >= 0; i--) {
@@ -852,7 +852,5 @@ static void __exit cleanup(void)
     printk(KERN_INFO "Cleaning up module.\n");
 }
 
-// need to get user space -> kernel space pointer for laat ioctl arg
-// safeusercopy, usercopy, kernelcopy
-module_init(main)
-module_exit(cleanup)
+module_init(ls3_init)
+module_exit(ls3_cleanup)
