@@ -48,6 +48,8 @@ static void dump_all_blocks_hex(int mountno, bool skip_empty);
 static void dump_block_hex(void *blk, uint64_t blockno);
 static void dump_bitmap(unsigned long *bitmap, uint64_t num_bits);
 static void* make_block(void);
+static void dealloc_mount(int mountno);
+static void flush_metadata(int mountno);
 static const struct file_operations my_fops;
 
 struct ioctl_data {
@@ -91,30 +93,63 @@ struct key_block {
 };
 static_assert(sizeof(struct key_block) == PAGE_CACHE_SIZE);
 
+#define INVALID_BLOCKNO ((uint64_t)(-1LL))
 
-struct superblock { // 0 - 31 super blocks. bitmap is (32 - N) * 2 where N is dependent on FS size / 8192 rounded to nearest mult of 8192
-    uint64_t magic;
-    uint64_t master; // (32 - N) * 2 - 1
-    uint64_t master_list_len; // 1
+#define MAX_FREEMAP_BLOCKS (1019)
+#define MAX_FILESYSTEM_BLOCKS (MAX_FREEMAP_BLOCKS * PAGE_CACHE_SIZE * 8LLU)
+struct superblock {
+    uint64_t magic; // for diagnostics / sanity checking
+    uint64_t master; // blocknum of master key_block (first block in chain)
+    uint64_t master_list_len; // length of master key_block chain
     uint64_t fs_size; // size of storage device, in bytes
     uint64_t timestamp; // current time
-    uint64_t used_bitmaps[1019]; //32 - N 
+    uint64_t freemap_block[MAX_FREEMAP_BLOCKS]; // blocknums where freemap is stored
 };
 static_assert(sizeof(struct superblock) == PAGE_CACHE_SIZE);
 
-// need to modify free bitmap where things are used initially
+// need to modify free freemap where things are used initially
 
 struct mount_data {
     struct superblock *super;
     struct file *filp;
-    unsigned long *bitmap;
+
+    // NOTE: freemap is a bitmap used to track status of ONLY the key and data
+    // blocks, The first 32 blocks are always set as USED, in order to reserve
+    // them for superblocks. The next X blocks are always set as USED to reserve
+    // them for storing the freemap itself (at least double the size needed for
+    // a full copy of the freemap).
+    unsigned long *freemap;
+
+    // Freemap is stored in a few blocks (lets say 3 blocks to store around
+    // 100000 bits, for 100000 blocks), but we reserve twice that amount, so X=6
+    // blocks (we could reserve more than this). Initially, the 3 blocks of the
+    // freemap will just go in blocks 32, 33, 34, and the other blocks, 35, 36,
+    // 37 are unused. If part of the freemap becomes dirty, it is put into block
+    // 35. If another part (or the same part) becomes dirty later, it is put
+    // into block 36, etc. In memory, we keep track of the highest blockno used
+    // for the freemap. Once it reaches the end of our reserved region, we erase
+    // the entire region (all 6 blocks), and store the freemap in the first 3
+    // blocks again.
+
+    // Keep track of the highest
+    uint64_t highest_freemap_blockno;
+
+    // freemap_array_status is an in-memory-only bitmap used to track the
+    // status (CLEAN or DIRTY) of the freemap_block array. When one of the
+    // array entries is dirty, it will need to be flushed to the storage device
+    // eventually, along with a new superblock.
+    unsigned long *freemap_array_status;
+
+    int dirty; // flag to indicate if any freemap array entries are dirty, which means
+    // that part of the freemap must be written to device storage, along with a
+    // new superblock.
 
     // from super->fs_size, we can calculate all other size parameters
     uint64_t num_blocks; // total number of blocks this device can hold
-    uint64_t num_freemap_bytes; // size of bitmap, enough bytes to hold 1 bit of status for each block
+    uint64_t num_freemap_bytes; // size of freemap, enough bytes to hold 1 bit of status for each block
     // FIXME: don't we need 2 bits for each block, to keep track of empty, full, and garbage blocks?
-    uint64_t num_freemap_blocks; // number of blocks needed to hold the entire bitmap
-    uint64_t num_total_freemap_blocks; // number of blocks to hold current bitmap blocks and reserved for future bitmap blocks
+    uint64_t num_freemap_blocks; // number of blocks needed to hold the entire freemap
+    uint64_t num_total_freemap_blocks; // number of blocks to hold current freemap blocks and reserved for future freemap blocks
 };
 
 struct mount_data *mnt[10];
@@ -126,19 +161,33 @@ struct mount_data *mnt[10];
 #define round_quotient_up(x, y) (((x) + __round_mask(x, y)) / (y))
 
 // Given a superblock superblock and open file, initialize a mount structure,
-// allocate the in-memory bitmap, and and calculate all the size parameters...
+// allocate the in-memory freemap, and and calculate all the size parameters...
 static struct mount_data *alloc_mount(struct superblock *super, struct file *filp) {
     struct mount_data *m = kzalloc(sizeof(struct mount_data), GFP_USER);
     m->super = super;
     m->filp = filp;
 
     m->num_blocks = super->fs_size / PAGE_CACHE_SIZE; // (num bytes) / (bytes per block)
+    if (m->num_blocks > MAX_FILESYSTEM_BLOCKS) {
+        pr_warn("Device size (%llu blocks) exceeds maximum, limiting to %llu blocks\n",
+                m->num_blocks, MAX_FILESYSTEM_BLOCKS);
+        m->num_blocks = MAX_FILESYSTEM_BLOCKS;
+    }
     m->num_freemap_bytes = round_quotient_up(m->num_blocks, 8); // (1 status bit for each block) / (8 bits per byte), rounded up to whole number
     m->num_freemap_blocks = round_quotient_up(m->num_freemap_bytes,  PAGE_CACHE_SIZE);
-    m->num_total_freemap_blocks = 2 * m->num_freemap_blocks;
+    m->num_total_freemap_blocks = 2 * m->num_freemap_blocks; // NOTE: this could be 3x, or 4x, etc.
+    m->highest_freemap_blockno = 0;
 
-    m->bitmap = kzalloc(round_up_to_pagesize(m->num_freemap_bytes), GFP_USER);
-    bitmap_clear(m->bitmap, 0, m->num_blocks);
+    m->freemap = kzalloc(round_up_to_pagesize(m->num_freemap_bytes), GFP_USER);
+    bitmap_clear(m->freemap, 0, m->num_blocks);
+
+    // reserve 32 blocks for superblocks, plus num_total_freemap_blocks more for freemap
+    bitmap_set(m->freemap, 0, NUM_RESERVED_SUPERBLOCKS + m->num_total_freemap_blocks);
+
+    uint64_t num_fas_bytes = round_quotient_up(m->num_freemap_blocks, 8);
+
+    m->freemap_array_status = kzalloc(num_fas_bytes, GFP_USER);
+    bitmap_clear(m->freemap_array_status, 0, m->num_freemap_blocks);
 
     pr_info("Created mount structure:\n"
             "             super->fs_size = %lld\n"
@@ -147,6 +196,7 @@ static struct mount_data *alloc_mount(struct superblock *super, struct file *fil
             "         num_freemap_blocks = %lld\n"
             "   num_total_freemap_blocks = %lld\n",
             super->fs_size, m->num_blocks, m->num_freemap_bytes, m->num_freemap_blocks, m->num_total_freemap_blocks);
+
     return m;
 }
 
@@ -196,8 +246,10 @@ static void kill_ls3_super(struct super_block *sb)
     int mountno = *(int *)sb->s_fs_info;
 
     pr_info("Unmounting device, closing filp %p", mnt[mountno]->filp);
-    filp_close(mnt[mountno]->filp, NULL);
-    mnt[mountno] = NULL;
+
+    dealloc_mount(mountno);
+
+    sb->s_fs_info = NULL;
     kill_block_super(sb);
 }
 
@@ -373,16 +425,21 @@ static int ls3_fill_super (struct super_block *sb, void *data, int silent)
             "   num_total_freemap_blocks = %lld\n",
             super->fs_size, m->num_blocks, m->num_freemap_bytes, m->num_freemap_blocks, m->num_total_freemap_blocks);
     for(i = 0; i < m->num_freemap_blocks; i++) {
-        pr_info("           freemap_block[%d] = %lld", i, m->super->used_bitmaps[i]);
+        pr_info("           freemap_block[%d] = %lld", i, m->super->freemap_block[i]);
     }
 
-    // Load bitmap from device
+    // Load freemap from device, and
+    // calculate highest_freemap_blockno
     for(i = 0; i < m->num_freemap_blocks; i++) {
-        get_block(mnt[mountno]->super->used_bitmaps[i], ((void *)mnt[mountno]->bitmap)+(i*PAGE_CACHE_SIZE), mountno);
+        uint64_t blockno = mnt[mountno]->super->freemap_block[i];
+        if (blockno > m->highest_freemap_blockno)
+            m->highest_freemap_blockno = blockno;
+        get_block(blockno, ((void *)mnt[mountno]->freemap)+(i*PAGE_CACHE_SIZE), mountno);
     }
 
     if (verbose >= 2) {
-        dump_bitmap(m->bitmap, m->num_blocks);
+        pr_info("freemap:\n");
+        dump_bitmap(m->freemap, m->num_blocks);
     }
 
     if (verbose >= 3) {
@@ -519,7 +576,7 @@ static void dump_all_blocks_hex(int mountno, bool skip_empty) {
     uint64_t i;
     for (i = 0; i < m->num_blocks; i++) {
         if (skip_empty) {
-            if (!test_bit(i, m->bitmap)) {
+            if (!test_bit(i, m->freemap)) {
                 num_skipped++;
                 continue;
             }
@@ -538,13 +595,13 @@ static void dump_all_blocks_hex(int mountno, bool skip_empty) {
     }
 }
 
-static void dump_bitmap(unsigned long *bitmap, uint64_t num_bits) {
+static void dump_bitmap(unsigned long *freemap, uint64_t num_bits) {
     uint64_t i, j = 0;
     char buf[33];
     buf[32] = '\0';
     int pos = 0;
     for (i = 0; i < num_bits; i++) {
-        buf[pos++] = test_bit(i, bitmap) ? '1' : '0';
+        buf[pos++] = test_bit(i, freemap) ? '1' : '0';
         if (pos == 32) {
             pr_info("  %s status for blocks %llu to %llu\n", buf, j, i);
             pos = 0;
@@ -559,27 +616,35 @@ static void dump_bitmap(unsigned long *bitmap, uint64_t num_bits) {
 }
 
 // NEED PARAM, ARE WE RESERVING SUPER OR DATA OR FREE? data is 35 onward+
+// #define BLOCK_TYPE_SUPER    (1) // will hold super_block, in blocks 0 .. 31
+// #define BLOCK_TYPE_FREEMAP  (2) // will hold freemap data, in blocks 32 .. X
+// #define BLOCK_TYPE_KEYS     (3) // will hold key_block, in blocks X .. end
+// #define BLOCK_TYPE_DATA     (4) // will hold data_block, in blocks X .. end
 static uint64_t reserve_block(int mountno) {
-    // search the free bitmap, find a 1, change 1 to 0 and return corresponding number that goes with the block.
+    // search the free freemap, find a 1, change 1 to 0 and return corresponding number that goes with the block.
 
     uint64_t num_blocks = mnt[mountno]->num_blocks;
     if (verbose >= 3) {
         pr_info("Reserving one of %lld blocks, freemap is:\n", num_blocks);
-        dump_bitmap(mnt[mountno]->bitmap, num_blocks);
+        dump_bitmap(mnt[mountno]->freemap, num_blocks);
     }
 
     int order = 0; // 2^order = 1, looking for region of size 1 bit
-    uint64_t block = bitmap_find_free_region(mnt[mountno]->bitmap, num_blocks, order);
+    uint64_t blockno = bitmap_find_free_region(mnt[mountno]->freemap, num_blocks, order);
+
+    uint64_t freemap_array_idx = blockno / (8 * PAGE_CACHE_SIZE);
+    bitmap_set(mnt[mountno]->freemap_array_status, freemap_array_idx, 1);
+    mnt[mountno]->dirty = 1;
 
     if (verbose >= 1)
-        pr_info("Reserved block %llu\n", block);
+        pr_info("Reserved block %llu\n", blockno);
 
-    return block;
+    return blockno;
 }
 
 static int unreserve_block(uint64_t blockno, int mountno) {
-    // modify bitmap to put 1 in the place of this block
-    bitmap_clear(mnt[mountno]->bitmap, blockno, 1);
+    // modify freemap to put 1 in the place of this block
+    bitmap_clear(mnt[mountno]->freemap, blockno, 1);
     return 0;
 }
 
@@ -633,7 +698,7 @@ static void write_fs(char *key, char *data, uint64_t key_len, uint64_t data_len,
         // is this right?
         mnt[mountno]->super->master = new_key_block;
 
-        // FIXME need to write bitmap (and superblock) to storage
+        // FIXME need to write freemap (and superblock) to storage
     }
 }
 
@@ -846,25 +911,29 @@ static int my_ioctl(struct file *file, unsigned int unused, unsigned long arg)
                     pr_info("   master_list_len = 0x%016llx\n", super->master_list_len);
                     pr_info("         timestamp = 0x%016llx\n", super->timestamp);
                 }
-                // invalidate all indexes from superblock to to bitmap blocks
+                // invalidate all indexes from superblock to freemap blocks
                 for(i = 0; i < new_mount->num_total_freemap_blocks; i++) {
-                    super->used_bitmaps[i] = -1;
+                    super->freemap_block[i] = INVALID_BLOCKNO;
                 }
-                // first half of indexes should point into the reserved region for bitmap blocks,
+                // first half of indexes should point into the reserved region for freemap blocks,
                 // this region starts directly after the area reserved for superblocks
                 loff_t freemap_blockno = NUM_RESERVED_SUPERBLOCKS;
                 for(i = 0; i < new_mount->num_freemap_blocks; i++) {
-                    super->used_bitmaps[i] = freemap_blockno + i; // use half of the doubled superblocks
+                    uint64_t blockno = freemap_blockno + i;
+                    super->freemap_block[i] = blockno;
+                    new_mount->highest_freemap_blockno = blockno; // not used during format
                     if (verbose >= 1)
-                        pr_info("   used_bitmaps[%d] = 0x%016llx\n", i, super->used_bitmaps[i]);
+                        pr_info("   freemap_block[%d] = 0x%016llx\n", i, super->freemap_block[i]);
                 }
 
-                // status of block 0 is USED (for superblock)
-                bitmap_set(new_mount->bitmap, 0, 1);
-                // status of N blocks, starting at block 32, will be USED (for freemap)
-                bitmap_set(new_mount->bitmap, freemap_blockno, new_mount->num_freemap_blocks);
-                // status of 1 more block is USED (for master key block)
-                bitmap_set(new_mount->bitmap, super->master, 1);
+                // Note: these next 2 are done in alloc_mount
+                // // status of blocks 0..31 are USED (for superblocks)
+                // bitmap_set(new_mount->freemap, 0, NUM_RESERVED_SUPERBLOCKS);
+                // // status of N blocks, starting at block 32, will be USED (for freemap)
+                // bitmap_set(new_mount->freemap, freemap_blockno, new_mount->num_total_freemap_blocks);
+
+                // status of 1 more block is USED (for first master key block)
+                bitmap_set(new_mount->freemap, super->master, 1);
 
                 if (verbose >= 2)
                     pr_info("Writing structures to device\n");
@@ -874,7 +943,7 @@ static int my_ioctl(struct file *file, unsigned int unused, unsigned long arg)
                 kernel_write(new_mount->filp, new_mount->super, PAGE_CACHE_SIZE, &pos);
                 // freemap goes after the are reserved for superblocks
                 pos = freemap_blockno * PAGE_CACHE_SIZE;
-                kernel_write(new_mount->filp, new_mount->bitmap, new_mount->num_freemap_blocks * PAGE_CACHE_SIZE, &pos);
+                kernel_write(new_mount->filp, new_mount->freemap, new_mount->num_freemap_blocks * PAGE_CACHE_SIZE, &pos);
                 // key block goes after that, but it will be entirely blank
                 void *keys = make_block(); // all zeros, initially
                 pos = super->master * PAGE_CACHE_SIZE;
@@ -920,19 +989,70 @@ int __init ls3_init(void) {
 void __exit ls3_cleanup(void)
 {
     pr_info("Cleaning up module.\n");
-    int i;
-    for(i = NUM_MOUNTS-1; i >= 0; i--) {
-        if(mnt[i] != NULL) {
-            if (verbose >= 1)
-                pr_info("closing filp %p", mnt[i]->filp);
-            filp_close(mnt[i]->filp, NULL);
-        }
-        // FREE ALL DATA HERE, UNMOUNT
+    int mountno;
+    for(mountno = NUM_MOUNTS-1; mountno >= 0; mountno--) {
+        if(mnt[mountno] == NULL)
+            continue;
+        pr_info("Forcing umount of device %d\n", mountno);
+        dealloc_mount(mountno);
     }
 
     misc_deregister(&my_device);
     unregister_filesystem(&ls3_type);
 }
 
-    module_init(ls3_init)
+// TODO: call this periodically, within a minute or so of any modifications
+static void flush_metadata(int mountno) {
+    struct mount_data *m = mnt[mountno];
+    if (!m->dirty)
+        return;
+    pr_info("Freemap is dirty, flushing to device\n");
+    int num_blocks_needed = bitmap_weight(m->freemap_array_status,
+            m->num_freemap_blocks);
+    if (m->highest_freemap_blockno + num_blocks_needed
+            >= NUM_RESERVED_SUPERBLOCKS + m->num_total_freemap_blocks) {
+        pr_info("Freemap region is full, clearing entire region");
+        uint64_t blockno = NUM_RESERVED_SUPERBLOCKS;
+        void *freemap_data = m->freemap;
+        int i;
+        for (i = 0; i < m->num_freemap_blocks; i++) {
+            put_block(blockno, freemap_data, mountno);
+            m->super->freemap_block[i] = blockno;
+            clear_bit(i, m->freemap_array_status);
+            m->highest_freemap_blockno = blockno;
+            freemap_data += PAGE_CACHE_SIZE;
+            blockno++;
+        }
+    } else {
+        pr_info("Freemap region not full, writing only modified freemap blocks");
+        void *freemap_data = m->freemap;
+        int i;
+        for (i = 0; i < m->num_freemap_blocks; i++) {
+            if (!test_bit(i, m->freemap_array_status))
+                continue;
+            uint64_t blockno = ++m->highest_freemap_blockno;
+            put_block(blockno, freemap_data + i*PAGE_CACHE_SIZE, mountno);
+            m->super->freemap_block[i] = blockno;
+            clear_bit(i, m->freemap_array_status);
+        }
+    }
+    pr_info("Superblock is dirty, flushing to device\n");
+    // TODO: should write to block 1, 2, 3, ... before re-using block 0
+    put_block(0, m->super, mountno);
+    m->dirty = 0;
+}
+
+static void dealloc_mount(int mountno) {
+    flush_metadata(mountno);
+    
+    if (verbose >= 1)
+        pr_info("closing filp %p", mnt[mountno]->filp);
+    filp_close(mnt[mountno]->filp, NULL);
+    mnt[mountno] = NULL;
+
+    // TODO: free lots of memory
+}
+
+
+module_init(ls3_init)
 module_exit(ls3_cleanup)
