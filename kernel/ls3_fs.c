@@ -72,6 +72,7 @@ struct ioctl_data {
 #define DATA_BLOCK_PAYLOAD (PAGE_CACHE_SIZE-8)
 struct data_block {
     char value[DATA_BLOCK_PAYLOAD];
+    // FIXME set next_blockno to invalid
     uint64_t next_blockno;
 };
 static_assert(sizeof(struct data_block) == PAGE_CACHE_SIZE);
@@ -87,6 +88,7 @@ static_assert(sizeof(struct key_entry) == 144);
 
 #define ENTRIES_PER_KEYBLOCK (56)
 struct key_block {
+    // FIXME during format, set older to invalid
     uint64_t older_blockno;
     struct key_entry entry[ENTRIES_PER_KEYBLOCK];
     char unused[120]; // padding to ensure key_block is one full block
@@ -103,6 +105,7 @@ struct superblock {
     uint64_t master_list_len; // length of master key_block chain
     uint64_t fs_size; // size of storage device, in bytes
     uint64_t timestamp; // current time
+    // FIXME during format, set all these to invalid, not just the pair of them
     uint64_t freemap_block[MAX_FREEMAP_BLOCKS]; // blocknums where freemap is stored
 };
 static_assert(sizeof(struct superblock) == PAGE_CACHE_SIZE);
@@ -625,12 +628,17 @@ static uint64_t reserve_block(int mountno) {
 
     uint64_t num_blocks = mnt[mountno]->num_blocks;
     if (verbose >= 3) {
-        pr_info("Reserving one of %lld blocks, freemap is:\n", num_blocks);
+        pr_info("Reserving one of %lld blocks, freemap before reservation is:\n", num_blocks);
         dump_bitmap(mnt[mountno]->freemap, num_blocks);
     }
 
     int order = 0; // 2^order = 1, looking for region of size 1 bit
     uint64_t blockno = bitmap_find_free_region(mnt[mountno]->freemap, num_blocks, order);
+
+    if (verbose >= 3) {
+        pr_info("After reservation, freemap is now:\n");
+        dump_bitmap(mnt[mountno]->freemap, num_blocks);
+    }
 
     uint64_t freemap_array_idx = blockno / (8 * PAGE_CACHE_SIZE);
     bitmap_set(mnt[mountno]->freemap_array_status, freemap_array_idx, 1);
@@ -644,7 +652,19 @@ static uint64_t reserve_block(int mountno) {
 
 static int unreserve_block(uint64_t blockno, int mountno) {
     // modify freemap to put 1 in the place of this block
+    if (verbose >= 1)
+        pr_info("Un-reserving block %llu\n", blockno);
+    if (verbose >= 3) {
+        uint64_t num_blocks = mnt[mountno]->num_blocks;
+        pr_info("Before un-reservation, freemap is:\n");
+        dump_bitmap(mnt[mountno]->freemap, num_blocks);
+    }
     bitmap_clear(mnt[mountno]->freemap, blockno, 1);
+    if (verbose >= 3) {
+        uint64_t num_blocks = mnt[mountno]->num_blocks;
+        pr_info("After un-reservation, freemap is now:\n");
+        dump_bitmap(mnt[mountno]->freemap, num_blocks);
+    }
     return 0;
 }
 
