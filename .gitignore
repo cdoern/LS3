@@ -4,6 +4,21 @@
 *.dll
 *.so
 *.dylib
+bin/ls3
+bin/mkfs.ls3
+
+# Binaries for kernel module
+.*.ko.cmd
+.*.mod.cmd
+.*.mod.o.cmd
+.*.o.cmd
+Module.symvers
+*.ko
+*.mod
+*.mod.c
+*.mod.o
+*.o
+modules.order
 
 # Test binary, built with `go test -c`
 *.test
@@ -13,3 +28,6 @@
 
 # Dependency directories (remove the comment below to include it)
 # vendor/
+
+# Test filesystem image files
+*.img
