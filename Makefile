@@ -1,7 +1,10 @@
 GO ?= go
 SOURCES = $(shell find . -path './.*' -prune -o \( \( -name '*.go' -o -name '*.c' \) -a ! -name '*_test.go' \) -print)
 PROJECT := github.com/cdoern/LS3
-BACKING_FILE := /home/charliedoern/Documents/testing.txt
+BACKING_FILE := $(PWD)/testing.img
+SIZE_IN_MB := 1
+MOUNTPOINT := $(PWD)/testmount
+
 
 ifeq ($(GOPATH),)
 export GOPATH := $(HOME)/go
@@ -29,6 +32,8 @@ ifeq ("$(wildcard $(GOPKGDIR))","")
 endif
 	touch $@
 
+all: bin/ls3 bin/mkfs.ls3 modules
+
 bin/ls3: .gopathok $(SOURCES) go.mod go.sum
 	$(GOCMD) build \
 		$(BUILDFLAGS) \
@@ -53,10 +58,15 @@ ls3: bin/ls3
 
 .PHONY: vendor
 vendor:
-	# go mod init
-	go mod tidy
-	go mod vendor
+	go mod init LS3
 
+obj-m += ls3_fs.o
+CONFIG_MODULE_SIG=n
+ccflags-y += -Wno-declaration-after-statement -Wno-unused-function
+
+.PHONY: modules
+modules: 
+	make -C /lib/modules/$(shell uname -r)/build M=$(PWD)/kernel modules
 
 .PHONY: clean
 clean: 
@@ -64,13 +74,49 @@ clean:
 
 .PHONY: zero
 zero:
-	dd if=/dev/zero of=$(BACKING_FILE) bs=1000 count=1000000
+	rm -f $(BACKING_FILE)
+	dd if=/dev/zero of=$(BACKING_FILE) bs=1024 count=$(shell expr $(SIZE_IN_MB) \* 1024)
 
 .PHONY: insmod
 insmod:
 	sync # to ensure files are stored before crashing
-	sudo insmod kernel/ls3.ko backing_file=$(BACKING_FILE) verbose=1
+	sudo insmod kernel/ls3_fs.ko verbose=1
+
+.PHONY: insmod0
+insmod0:
+	sync # to ensure files are stored before crashing
+	sudo insmod kernel/ls3_fs.ko verbose=0
+
+.PHONY: insmod2
+insmod2:
+	sync # to ensure files are stored before crashing
+	sudo insmod kernel/ls3_fs.ko verbose=2
+
+.PHONY: insmod3
+insmod3:
+	sync # to ensure files are stored before crashing
+	sudo insmod kernel/ls3_fs.ko verbose=3
 
 .PHONY: rmmod
 rmmod:
-	sudo rmmod ls3
+	sudo rmmod ls3_fs
+
+.PHONY: format
+format:
+	bin/mkfs.ls3 $(BACKING_FILE)
+
+.PHONY: mount
+mount:
+	mkdir -p $(MOUNTPOINT)
+	sudo mount -t ls3 -o loop $(BACKING_FILE) $(MOUNTPOINT)
+
+.PHONY: umount
+umount:
+	sudo umount $(MOUNTPOINT) || true
+
+
+.PHONY: starttest
+starttest: zero insmod format mount
+
+.PHONY: endtest
+starttest: umount rmmod
