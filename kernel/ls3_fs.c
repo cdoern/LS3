@@ -115,7 +115,6 @@ static_assert(sizeof(struct superblock) == PAGE_CACHE_SIZE);
 struct mount_data {
     struct superblock *super;
     struct file *filp;
-
     // NOTE: freemap is a bitmap used to track status of ONLY the key and data
     // blocks, The first 32 blocks are always set as USED, in order to reserve
     // them for superblocks. The next X blocks are always set as USED to reserve
@@ -266,11 +265,9 @@ static struct dentry *ls3_mount(struct file_system_type *ls3_type, int flags, co
     }
     // ??????????????????????????????????????????????????????????????
 }
-/*
    struct dentry *ls3_unmount(struct file_system_type *ls3_type, int flags, const char *dev_name, void *data) {
    return unmount_nodev(ls3_type, flags, data, ls3_fill_super);
    }
-   */
 
 
 

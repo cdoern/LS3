@@ -10,6 +10,12 @@ import (
 	"unsafe"
 )
 
+// FIXME: define constants to match kernel module
+// #define LS3_IOCTL_CMD_GETOBJECT (0x0001) // IOCTL_CMD_READ?
+// #define LS3_IOCTL_CMD_PUTOBJECT (0x0707) // IOCTL_CMD_RDWR?
+// #define LS3_IOCTL_CMD_DELOBJECT (0x8000) // IOCTL_CMD_DELETE?
+// #define LS3_MAX_KEYLEN (127)
+
 type ioctl_data struct {
 	cmd       uint64
 	key_len   uint64

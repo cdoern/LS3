@@ -5,6 +5,7 @@ BACKING_FILE := $(PWD)/testing.img
 SIZE_IN_MB := 1
 MOUNTPOINT := $(PWD)/testmount
 
+
 ifeq ($(GOPATH),)
 export GOPATH := $(HOME)/go
 unexport GOBIN
@@ -58,9 +59,6 @@ ls3: bin/ls3
 .PHONY: vendor
 vendor:
 	go mod init LS3
-	go mod tidy
-	go mod vendor
-
 
 obj-m += ls3_fs.o
 CONFIG_MODULE_SIG=n
