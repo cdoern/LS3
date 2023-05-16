@@ -7,4 +7,5 @@ type StorageEngine interface {
 	GetObject(key string) ([]byte, error)
 	ListObjects() error
 	PutObject(key string, value []byte) error
+	Format(device string) error
 }
