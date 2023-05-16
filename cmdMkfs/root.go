@@ -38,10 +38,10 @@ func format(cmd *cobra.Command, args []string) error {
 	var err error
 	deviceArr := []byte(args[0])
 	send := ioctl_data{
-		cmd:       4,
-		value:     unsafe.Pointer(&deviceArr[0]),
-		value_len: uint64(len(deviceArr)),
-		mountno:   0,
+		cmd:     4,
+		key:     unsafe.Pointer(&deviceArr[0]),
+		key_len: uint64(len(deviceArr)),
+		mountno: 0,
 	}
 	// go open/create a device and then kernel module can inercept this opening of a /dev
 	// open/rm of dev should maybe be done by kernel module
